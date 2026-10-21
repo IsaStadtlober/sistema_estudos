@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Cronograma{% endblock %}
+
+{% block content %}
+<section class="space-y-6">
+
+    <!-- Controles -->
+    <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Cronograma Inteligente</h2>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Distribuição automática baseada em peso e histórico de erros</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
+                <button type="button" id="cronoBtnMonthView" class="px-3 py-1.5 rounded-lg text-xs font-semibold">Mês</button>
+                <button type="button" id="cronoBtnWeekView" class="px-3 py-1.5 rounded-lg text-xs font-semibold">Semana</button>
+            </div>
+            <div class="flex items-center gap-1">
+                <button type="button" id="cronoPrev" class="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-xs"><i class="fa-solid fa-chevron-left"></i></button>
+                <span id="cronoMonthTitle" class="text-xs font-bold px-2 min-w-[120px] text-center"></span>
+                <button type="button" id="cronoNext" class="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-xs"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Aviso -->
+    <div class="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 p-4 rounded-xl flex items-center justify-between gap-3 text-xs text-indigo-900 dark:text-indigo-200">
+        <div class="flex items-center gap-2">
+            <i class="fa-solid fa-circle-info text-indigo-600 text-base"></i>
+            <span>A ordem dos tópicos considera o <strong>peso</strong> de cada disciplina e o que falta do edital. O ajuste automático por <strong>desempenho</strong> entra no Lote 5.</span>
+        </div>
+        <button type="button" data-em-breve="5" class="font-bold underline text-indigo-700 hover:text-indigo-900 dark:text-indigo-300 whitespace-nowrap">Ver Lógica</button>
+    </div>
+
+    <!-- Calendário (telas maiores) -->
+    <div class="hidden md:block bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+        <div class="grid grid-cols-7 gap-1 text-center font-bold text-xs text-gray-400 mb-2">
+            <div>SEG</div><div>TER</div><div>QUA</div><div>QUI</div><div>SEX</div><div>SÁB</div><div>DOM</div>
+        </div>
+        <div id="cronoCalendarGrid" class="grid grid-cols-7 gap-1"></div>
+    </div>
+
+    <!-- Lista por dia (celular) -->
+    <div id="cronoList" class="md:hidden space-y-2"></div>
+
+    <!-- Legenda -->
+    <div id="cronoLegend" class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500 dark:text-gray-400"></div>
+
+    <!-- Detalhes do dia -->
+    <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+        <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3 mb-4">
+            <h3 id="cronoDrawerTitle" class="font-bold text-gray-900 dark:text-white text-sm"></h3>
+            <span id="cronoDrawerStatus" class="text-xs font-bold px-2.5 py-0.5 rounded-full"></span>
+        </div>
+        <div id="cronoDrawerContent" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs"></div>
+    </div>
+</section>
+
+{{ dados|json_script:"dados-cronograma" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/cronograma.js' %}"></script>
+{% endblock %}

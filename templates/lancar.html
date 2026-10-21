@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Lançar Resultado{% endblock %}
+
+{% block content %}
+<section class="space-y-6">
+
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm max-w-2xl mx-auto space-y-5">
+        <div>
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Lançar Resultado de Questões</h2>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Registre sua bateria do QConcursos para atualizar os gráficos</p>
+        </div>
+
+        <form id="lancarForm" class="space-y-4 text-xs" novalidate>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Data da Bateria</label>
+                    <input id="lancarDate" type="date" required value="{{ hoje_iso }}" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Disciplina</label>
+                    <select id="lancarDiscipline" required class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                        {% for d in disc_lancar %}<option value="{{ d.id }}">{{ d.nome }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Tópico Estudado</label>
+                <select id="lancarTopic" required class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"></select>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3">
+                <div>
+                    <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Nº Questões</label>
+                    <input id="lancarTotal" type="number" min="1" max="200" required placeholder="Ex: 15" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Nº Acertos</label>
+                    <input id="lancarAcertos" type="number" min="0" max="200" required placeholder="Ex: 12" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Tempo (min)</label>
+                    <input id="lancarTempo" type="number" min="1" max="600" placeholder="Ex: 35" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+            </div>
+
+            <div id="lancarErrorBox" class="hidden bg-rose-100 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300 p-3 rounded-xl text-xs">
+                <i class="fa-solid fa-triangle-exclamation mr-1"></i> <span id="lancarErrorText"></span>
+            </div>
+
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md">
+                Salvar Lançamento
+            </button>
+        </form>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden max-w-4xl mx-auto">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700 font-bold text-gray-900 dark:text-white text-xs">
+            Últimos Lançamentos Registrados
+        </div>
+        <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 uppercase font-semibold">
+                        <th class="p-3">Data</th>
+                        <th class="p-3">Disciplina</th>
+                        <th class="p-3">Tópico</th>
+                        <th class="p-3 text-center">Desempenho</th>
+                        <th class="p-3 text-center">% Acerto</th>
+                        <th class="p-3 text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700 text-gray-700 dark:text-gray-300">
+                    {% for l in historico %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                        <td class="p-3">{{ l.data|date:"d/m/Y" }}</td>
+                        <td class="p-3 font-semibold">{{ l.disciplina }}</td>
+                        <td class="p-3 font-medium">{{ l.topico }}</td>
+                        <td class="p-3 text-center">{{ l.total }} ({{ l.acertos }}C / {{ l.erros }}E)</td>
+                        <td class="p-3 text-center font-bold {% if l.pct >= 70 %}text-emerald-500{% else %}text-rose-500{% endif %}">{{ l.pct }}%</td>
+                        <td class="p-3 text-center">
+                            <button type="button" data-em-breve="6" class="text-rose-500 hover:text-rose-700" title="Apagar"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="p-6 text-center text-gray-400">Nenhum lançamento registrado.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+{{ disc_lancar|json_script:"dados-lancar" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/lancar.js' %}"></script>
+{% endblock %}
