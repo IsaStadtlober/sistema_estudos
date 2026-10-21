@@ -47,10 +47,7 @@ def _fila_provisoria(grupos, n):
 
 def dashboard(request):
     ativo = obter_concurso_ativo()
-    disciplinas = []
-    if ativo:
-        disciplinas = list(ativo.disciplinas.values("id", "sigla", "nome", "peso", "cor"))
-    return render(request, "dashboard.html", {"disciplinas": disciplinas})
+    return render(request, "dashboard.html", {"plano": _plano_provisorio(ativo, Configuracao.obter())})
 
 
 # ---------- Hoje ----------

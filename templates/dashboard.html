@@ -4,7 +4,11 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<section class="space-y-6">
+<section id="dashRoot" class="space-y-6 transition-opacity">
+
+    <div id="dashErro" class="hidden bg-rose-100 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300 p-3 rounded-xl text-xs">
+        <i class="fa-solid fa-triangle-exclamation mr-1"></i> Não foi possível carregar os dados do Dashboard. Atualize a página ou confira o terminal do servidor.
+    </div>
 
     <!-- Filtros -->
     <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -14,15 +18,13 @@
         </div>
         <div class="flex flex-wrap items-center gap-3">
             <select id="dashFilterConcurso" class="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100 text-xs rounded-xl p-2.5 font-medium outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="ALL">Todos os Concursos</option>
                 {% for c in concursos %}
                 <option value="{{ c.id }}" {% if c.id == concurso_ativo.id %}selected{% endif %}>{{ c.nome }}</option>
                 {% endfor %}
             </select>
             <select id="dashFilterDisc" class="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100 text-xs rounded-xl p-2.5 font-medium outline-none focus:ring-2 focus:ring-indigo-500">
                 <option value="ALL">Todas as Disciplinas</option>
-                {% for d in disciplinas %}
-                <option value="{{ d.sigla }}">{{ d.nome }}</option>
-                {% endfor %}
             </select>
             <select id="dashFilterPeriod" class="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100 text-xs rounded-xl p-2.5 font-medium outline-none focus:ring-2 focus:ring-indigo-500">
                 <option value="7">Últimos 7 dias</option>
@@ -41,15 +43,16 @@
                 <i class="fa-solid fa-pen-to-square text-indigo-500"></i>
             </div>
             <div id="kpiQuestoesVal" class="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">0</div>
-            <div id="kpiQuestoesVar" class="text-[11px] mt-1 font-medium text-emerald-500"></div>
+            <div id="kpiQuestoesVar" class="text-[11px] mt-1 font-medium text-gray-400"></div>
         </div>
         <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
             <div class="flex items-center justify-between text-gray-500 dark:text-gray-400 mb-2">
                 <span class="text-xs font-semibold uppercase">% Acerto</span>
                 <i class="fa-solid fa-bullseye text-emerald-500"></i>
             </div>
-            <div id="kpiAcertoVal" class="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">0%</div>
-            <div id="kpiAcertoVar" class="text-[11px] mt-1 font-medium text-emerald-500"></div>
+            <div id="kpiAcertoVal" class="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">—</div>
+            <div id="kpiAcertoVar" class="text-[11px] mt-1 font-medium text-gray-400"></div>
+            <div id="kpiAcertoDet" class="text-[11px] text-gray-400"></div>
         </div>
         <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
             <div class="flex items-center justify-between text-gray-500 dark:text-gray-400 mb-2">
@@ -57,7 +60,7 @@
                 <i class="fa-solid fa-clock text-amber-500"></i>
             </div>
             <div id="kpiHorasVal" class="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">0h00</div>
-            <div id="kpiHorasVar" class="text-[11px] mt-1 font-medium text-emerald-500"></div>
+            <div id="kpiHorasVar" class="text-[11px] mt-1 font-medium text-gray-400"></div>
         </div>
         <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
             <div class="flex items-center justify-between text-gray-500 dark:text-gray-400 mb-2">
@@ -93,20 +96,20 @@
                     <span class="bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Plano de Hoje</span>
                     <i class="fa-solid fa-rocket text-indigo-200 text-lg"></i>
                 </div>
-                <h3 class="text-lg font-bold mb-1">Rotina: 105 minutos</h3>
+                <h3 class="text-lg font-bold mb-1">Rotina: {{ plano.minutos }} minutos</h3>
                 <p class="text-xs text-indigo-100 mb-4">3 blocos programados para manter sua alta performance.</p>
                 <div class="space-y-2 text-xs">
-                    <div class="bg-white/10 backdrop-blur-sm p-2.5 rounded-xl flex items-center justify-between">
-                        <span class="flex items-center gap-2"><i class="fa-solid fa-book text-blue-300"></i> Teoria (42 min)</span>
-                        <span class="font-semibold text-right truncate max-w-[120px]">Banco de Dados</span>
+                    <div class="bg-white/10 backdrop-blur-sm p-2.5 rounded-xl flex items-center justify-between gap-2">
+                        <span class="flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-book text-blue-300"></i> Teoria ({{ plano.m_teoria }} min)</span>
+                        <span class="font-semibold text-right truncate max-w-[140px]">{% if plano.teoria %}{{ plano.teoria.disciplina }}{% else %}Concluída{% endif %}</span>
                     </div>
-                    <div class="bg-white/10 backdrop-blur-sm p-2.5 rounded-xl flex items-center justify-between">
-                        <span class="flex items-center gap-2"><i class="fa-solid fa-pen text-emerald-300"></i> Questões (37 min)</span>
-                        <span class="font-semibold text-right truncate max-w-[120px]">Segurança da Inf.</span>
+                    <div class="bg-white/10 backdrop-blur-sm p-2.5 rounded-xl flex items-center justify-between gap-2">
+                        <span class="flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-pen text-emerald-300"></i> Questões ({{ plano.m_questoes }} min)</span>
+                        <span class="font-semibold text-right truncate max-w-[140px]">{% if plano.questoes %}{{ plano.questoes.disciplina }}{% else %}—{% endif %}</span>
                     </div>
-                    <div class="bg-white/10 backdrop-blur-sm p-2.5 rounded-xl flex items-center justify-between">
-                        <span class="flex items-center gap-2"><i class="fa-solid fa-rotate-right text-purple-300"></i> Revisão (26 min)</span>
-                        <span class="font-semibold text-right truncate max-w-[120px]">Eng. Software</span>
+                    <div class="bg-white/10 backdrop-blur-sm p-2.5 rounded-xl flex items-center justify-between gap-2">
+                        <span class="flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-rotate-right text-purple-300"></i> Revisão ({{ plano.m_revisao }} min)</span>
+                        <span class="font-semibold text-right truncate max-w-[140px]">{% if plano.revisao %}{{ plano.revisao.disciplina }}{% else %}Nenhuma vencida{% endif %}</span>
                     </div>
                 </div>
             </div>
@@ -197,7 +200,7 @@
     <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
         <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <h3 class="font-bold text-gray-900 dark:text-white text-sm">Desempenho Detalhado por Disciplina</h3>
-            <span class="text-xs text-gray-500 dark:text-gray-400">{{ concurso_ativo.nome }}</span>
+            <span id="dashTabelaTitulo" class="text-xs text-gray-500 dark:text-gray-400">{{ concurso_ativo.nome }}</span>
         </div>
         <div class="overflow-x-auto custom-scrollbar">
             <table class="w-full text-left border-collapse text-xs">
@@ -240,8 +243,6 @@
         </div>
     </div>
 </div>
-
-{{ disciplinas|json_script:"dados-disciplinas" }}
 {% endblock %}
 
 {% block scripts %}

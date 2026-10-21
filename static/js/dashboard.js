@@ -1,52 +1,181 @@
-/* Dashboard: gráficos com DADOS DE DEMONSTRAÇÃO.
-   O Lote 4 troca o objeto DEMO por dados reais vindos do servidor. */
+/* Dashboard: busca os dados em /api/dashboard/ e desenha cards, gráficos e tabela. */
 (function () {
     'use strict';
 
-    var DISC = JSON.parse(document.getElementById('dados-disciplinas').textContent);
-    var el = function (id) { return document.getElementById(id); };
-    var dark = function () { return document.documentElement.classList.contains('dark'); };
-    var esc = function (s) {
-        return String(s).replace(/[&<>"]/g, function (c) {
-            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
-        });
-    };
+    var URL_API = '/api/dashboard/';
+    var $ = function (id) { return document.getElementById(id); };
+    var fConc = $('dashFilterConcurso');
+    var fDisc = $('dashFilterDisc');
+    var fPer = $('dashFilterPeriod');
 
-    // ===== DADOS DE DEMONSTRAÇÃO =====
-    var SEMANAS = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'];
-    var DEMO = {
-        volume: [110, 125, 140, 115, 150, 165, 145, 180],
-        acerto: [64, 68, 66, 72, 71, 75, 73, 78],
-        planejado: [10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 10.5, 10.5],
-        realizado: [9.5, 10.2, 11.0, 8.5, 10.5, 12.0, 10.0, 11.5],
-        kpis: { questoes: 482, varQ: 8.4, acerto: 73.2, varA: 2.1, minutos: 2490, varM: 5.0, teoria: 38, topicosQ: 44 },
-        cobertura: [38, 6, 56],
-        fracos: [
-            { topico: 'Licitações e Contratos (Lei 14.133)', disc: 'Direito Administrativo', pct: 52, ac: 13, tot: 25 },
-            { topico: 'LDO, PPA e LOA', disc: 'Contabilidade Pública e AFO', pct: 56, ac: 14, tot: 25 },
-            { topico: 'Regimento Interno do TCE-RJ', disc: 'Controle Externo e Legislação TCE-RJ', pct: 60, ac: 15, tot: 25 }
-        ]
-    };
-    var ACC = DISC.map(function (d, i) {
-        return Object.assign({}, d, { acc: 52 + ((i * 7) % 38), qs: 24 + ((i * 13) % 70), cov: (i * 11) % 100 });
-    });
-
+    var D = null;          // última resposta da API
     var charts = {};
-    function criar(id, config) {
-        if (charts[id]) charts[id].destroy();
-        charts[id] = new Chart(el(id), config);
+    var ativas = null;     // siglas exibidas na trajetória
+    var pedido = 0;        // evita resposta antiga sobrescrever a nova
+
+    // ---------- utilidades ----------
+    function esc(s) {
+        return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
     }
+    function num(v, casas) { return Number(v).toFixed(casas || 0).replace('.', ','); }
+    function pad(n) { return String(n).padStart(2, '0'); }
+    function dark() { return document.documentElement.classList.contains('dark'); }
 
     function aplicarTemaChart() {
         Chart.defaults.color = dark() ? '#9ca3af' : '#6b7280';
         Chart.defaults.borderColor = dark() ? '#374151' : '#e5e7eb';
     }
 
-    // Linha vertical da meta (70%) para gráfico de barras horizontais
+    function criar(id, config) {
+        if (charts[id]) charts[id].destroy();
+        charts[id] = new Chart($(id), config);
+    }
+
+    // Mostra mensagem no lugar do gráfico quando não há dados
+    function estadoVazio(id, vazio, msg) {
+        var canvas = $(id), box = canvas.parentNode, ov = box.querySelector('.estado-vazio');
+        if (vazio) {
+            if (!ov) {
+                ov = document.createElement('div');
+                ov.className = 'estado-vazio absolute inset-0 flex items-center justify-center text-center text-xs text-gray-400 px-6';
+                box.appendChild(ov);
+            }
+            ov.textContent = msg;
+            canvas.style.visibility = 'hidden';
+            if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+        } else {
+            if (ov) ov.remove();
+            canvas.style.visibility = 'visible';
+        }
+        return vazio;
+    }
+
+    // ---------- carregamento ----------
+    function montarDisciplinas(lista) {
+        var atual = fDisc.value;
+        fDisc.innerHTML = '<option value="ALL">Todas as Disciplinas</option>' + lista.map(function (d) {
+            return '<option value="' + esc(d.sigla) + '">' + esc(d.nome) + '</option>';
+        }).join('');
+        fDisc.value = lista.some(function (d) { return d.sigla === atual; }) ? atual : 'ALL';
+    }
+
+    function carregar() {
+        var n = ++pedido;
+        $('dashRoot').classList.add('opacity-60');
+        var qs = new URLSearchParams({ concurso: fConc.value, disciplina: fDisc.value, periodo: fPer.value });
+        fetch(URL_API + '?' + qs.toString(), { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+            .then(function (d) {
+                if (n !== pedido) return;
+                D = d;
+                $('dashErro').classList.add('hidden');
+                montarDisciplinas(d.filtros.disciplinas);
+                renderTudo();
+            })
+            .catch(function () { if (n === pedido) $('dashErro').classList.remove('hidden'); })
+            .then(function () { if (n === pedido) $('dashRoot').classList.remove('opacity-60'); });
+    }
+
+    // ---------- cards ----------
+    function variacao(id, v, sufixo) {
+        var n = $(id);
+        if (v === null || v === undefined) {
+            n.className = 'text-[11px] mt-1 font-medium text-gray-400';
+            n.textContent = 'sem comparação';
+            return;
+        }
+        var sobe = v >= 0;
+        n.className = 'text-[11px] mt-1 font-medium ' + (sobe ? 'text-emerald-500' : 'text-rose-500');
+        n.innerHTML = '<i class="fa-solid fa-arrow-' + (sobe ? 'up' : 'down') + '"></i> ' + (sobe ? '+' : '') + num(v, 1) + sufixo + ' vs ant.';
+    }
+
+    function renderKpis() {
+        var k = D.kpis;
+        $('kpiQuestoesVal').textContent = k.questoes;
+        variacao('kpiQuestoesVar', k.var_questoes, '%');
+        $('kpiAcertoVal').textContent = k.pct === null ? '—' : num(k.pct, 1) + '%';
+        variacao('kpiAcertoVar', k.var_pct, ' p.p.');
+        $('kpiAcertoDet').textContent = k.acertos + ' certas · ' + k.erros + ' erradas';
+        $('kpiHorasVal').textContent = Math.floor(k.minutos / 60) + 'h' + pad(k.minutos % 60);
+        variacao('kpiHorasVar', k.var_minutos, '%');
+        $('kpiTeoriaVal').textContent = k.teoria + '%';
+        $('kpiTopicosQVal').textContent = k.topicos_q + '%';
+        $('dashTabelaTitulo').textContent = D.filtros.concurso_nome;
+    }
+
+    // ---------- Onde focar ----------
+    function renderPrioridades() {
+        var box = $('topPriorityDisciplinesList');
+        box.innerHTML = D.prioridades.length ? D.prioridades.map(function (d) {
+            var ac = d.acerto === null
+                ? '<span class="text-gray-400 font-bold">sem questões</span>'
+                : '<span class="' + (d.acerto >= D.meta_acerto ? 'text-emerald-500' : 'text-rose-500') + ' font-bold">' + d.acerto + '% acerto</span>';
+            return '<div class="p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700 flex items-center justify-between cursor-pointer hover:border-indigo-500 transition-all" data-sigla="' + esc(d.sigla) + '">' +
+                '<div class="flex items-center gap-2 min-w-0"><span class="w-2.5 h-2.5 rounded-full flex-none" style="background-color:' + esc(d.cor) + '"></span>' +
+                '<span class="font-semibold text-gray-800 dark:text-gray-200 text-xs truncate">' + esc(d.nome) + '</span></div>' +
+                '<div class="flex items-center gap-2 text-[11px] flex-none"><span class="bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300 font-bold px-1.5 py-0.5 rounded">Peso ' + d.peso + '</span>' + ac + '</div></div>';
+        }).join('') : '<p class="text-xs text-gray-400">Sem disciplinas neste filtro.</p>';
+
+        box.querySelectorAll('[data-sigla]').forEach(function (n) {
+            n.addEventListener('click', function () { fDisc.value = n.getAttribute('data-sigla'); carregar(); });
+        });
+
+        $('weakestTopicsList').innerHTML = D.fracos.length ? D.fracos.map(function (w) {
+            return '<div class="p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2">' +
+                '<div class="min-w-0"><div class="font-semibold text-gray-800 dark:text-gray-200 truncate text-xs">' + esc(w.topico) + '</div>' +
+                '<div class="text-[10px] text-gray-400 truncate">' + esc(w.disciplina) + '</div></div>' +
+                '<div class="text-rose-500 font-bold text-[11px] flex-none">' + num(w.pct, 0) + '% (' + w.acertos + '/' + w.total + ')</div></div>';
+        }).join('') : '<p class="text-xs text-gray-400">Nenhum tópico com 5 ou mais questões ainda.</p>';
+    }
+
+    // ---------- gráficos ----------
+    function renderSemanal() {
+        var s = D.semanal;
+        var vazio = s.questoes.every(function (q) { return q === 0; });
+        if (estadoVazio('chartWeeklyProgress', vazio, 'Lance suas primeiras questões para ver a evolução.')) return;
+        criar('chartWeeklyProgress', {
+            type: 'bar',
+            data: {
+                labels: s.labels,
+                datasets: [
+                    { type: 'line', label: '% Acerto', data: s.acerto, borderColor: '#10b981', backgroundColor: '#10b981', borderWidth: 3, yAxisID: 'y1', tension: 0.3, spanGaps: true },
+                    { type: 'bar', label: 'Questões', data: s.questoes, backgroundColor: '#6366f1', borderRadius: 6, yAxisID: 'y' }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    y: { position: 'left', beginAtZero: true, grid: { display: false } },
+                    y1: { position: 'right', min: 0, max: 100, ticks: { callback: function (v) { return v + '%'; } } }
+                }
+            }
+        });
+    }
+
+    function renderCobertura() {
+        var c = D.cobertura;
+        if (estadoVazio('chartEditalCoverage', c.total === 0, 'Este filtro não tem tópicos no edital.')) return;
+        criar('chartEditalCoverage', {
+            type: 'doughnut',
+            data: {
+                labels: ['Teoria Vista', 'Só Questões', 'Não Iniciado'],
+                datasets: [{ data: [c.teoria, c.so_questoes, c.nao_iniciado], backgroundColor: ['#6366f1', '#10b981', dark() ? '#374151' : '#e5e7eb'], borderWidth: 0 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: { callbacks: { label: function (c2) { return ' ' + c2.label + ': ' + c2.parsed + ' tópico' + (c2.parsed === 1 ? '' : 's'); } } }
+                }
+            }
+        });
+    }
+
+    // Linha vertical da meta (ex.: 70%) no gráfico de barras horizontais
     var linhaMeta = {
         id: 'linhaMeta',
         afterDatasetsDraw: function (chart) {
-            var a = chart.chartArea, x = chart.scales.x, px = x.getPixelForValue(70), ctx = chart.ctx;
+            var a = chart.chartArea, px = chart.scales.x.getPixelForValue(D.meta_acerto), ctx = chart.ctx;
             ctx.save();
             ctx.strokeStyle = '#ef4444';
             ctx.lineWidth = 2;
@@ -59,131 +188,87 @@
         }
     };
 
-    function renderKpis() {
-        var k = DEMO.kpis;
-        var seta = function (v) { return '<i class="fa-solid fa-arrow-' + (v >= 0 ? 'up' : 'down') + '"></i> ' + (v >= 0 ? '+' : '') + v.toFixed(1) + '% vs ant.'; };
-        el('kpiQuestoesVal').textContent = k.questoes;
-        el('kpiQuestoesVar').innerHTML = seta(k.varQ);
-        el('kpiAcertoVal').textContent = k.acerto.toFixed(1) + '%';
-        el('kpiAcertoVar').innerHTML = seta(k.varA);
-        el('kpiHorasVal').textContent = Math.floor(k.minutos / 60) + 'h' + String(k.minutos % 60).padStart(2, '0');
-        el('kpiHorasVar').innerHTML = seta(k.varM);
-        el('kpiTeoriaVal').textContent = k.teoria + '%';
-        el('kpiTopicosQVal').textContent = k.topicosQ + '%';
-    }
-
-    function renderPrioridades() {
-        var top = ACC.slice().sort(function (a, b) { return b.peso - a.peso; }).slice(0, 3);
-        el('topPriorityDisciplinesList').innerHTML = top.map(function (d) {
-            return '<div class="p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700 flex items-center justify-between cursor-pointer hover:border-indigo-500 transition-all" data-sigla="' + esc(d.sigla) + '">' +
-                '<div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background-color:' + esc(d.cor) + '"></span>' +
-                '<span class="font-semibold text-gray-800 dark:text-gray-200 text-xs">' + esc(d.nome) + '</span></div>' +
-                '<div class="flex items-center gap-2 text-[11px]"><span class="bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300 font-bold px-1.5 py-0.5 rounded">Peso ' + d.peso + '</span>' +
-                '<span class="text-rose-500 font-bold">' + d.acc + '% acerto</span></div></div>';
-        }).join('');
-        el('topPriorityDisciplinesList').querySelectorAll('[data-sigla]').forEach(function (n) {
-            n.addEventListener('click', function () { el('dashFilterDisc').value = n.dataset.sigla; });
-        });
-
-        el('weakestTopicsList').innerHTML = DEMO.fracos.map(function (w) {
-            return '<div class="p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700 flex items-center justify-between">' +
-                '<div><div class="font-semibold text-gray-800 dark:text-gray-200 truncate max-w-[180px] text-xs">' + esc(w.topico) + '</div>' +
-                '<div class="text-[10px] text-gray-400">' + esc(w.disc) + '</div></div>' +
-                '<div class="text-rose-500 font-bold text-[11px]">' + w.pct + '% (' + w.ac + '/' + w.tot + ')</div></div>';
-        }).join('');
-    }
-
-    function renderSemanal() {
-        criar('chartWeeklyProgress', {
-            type: 'bar',
-            data: {
-                labels: SEMANAS,
-                datasets: [
-                    { type: 'line', label: '% Acerto', data: DEMO.acerto, borderColor: '#10b981', backgroundColor: '#10b981', borderWidth: 3, yAxisID: 'y1', tension: 0.3 },
-                    { type: 'bar', label: 'Questões', data: DEMO.volume, backgroundColor: '#6366f1', borderRadius: 6, yAxisID: 'y' }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                scales: {
-                    y: { position: 'left', grid: { display: false } },
-                    y1: { position: 'right', min: 0, max: 100, ticks: { callback: function (v) { return v + '%'; } } }
-                }
-            }
-        });
-    }
-
-    function renderCobertura() {
-        criar('chartEditalCoverage', {
-            type: 'doughnut',
-            data: {
-                labels: ['Teoria Vista', 'Só Questões', 'Não Iniciado'],
-                datasets: [{ data: DEMO.cobertura, backgroundColor: ['#6366f1', '#10b981', dark() ? '#374151' : '#e5e7eb'], borderWidth: 0 }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-        });
-    }
-
     function renderAcertoDisciplina() {
-        var ord = ACC.slice().sort(function (a, b) { return a.acc - b.acc; });
+        var ord = D.grafico_acerto;
+        if (estadoVazio('chartAccuracyBySubject', ord.length === 0, 'Sem questões lançadas neste filtro e período.')) return;
         criar('chartAccuracyBySubject', {
             type: 'bar',
             data: {
                 labels: ord.map(function (d) { return d.nome; }),
-                datasets: [{ label: '% Acerto', data: ord.map(function (d) { return d.acc; }), backgroundColor: ord.map(function (d) { return d.cor; }), borderRadius: 4 }]
+                datasets: [{ label: '% Acerto', data: ord.map(function (d) { return d.pct; }), backgroundColor: ord.map(function (d) { return d.cor; }), borderRadius: 4 }]
             },
             options: {
                 indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                 scales: { x: { min: 0, max: 100, ticks: { callback: function (v) { return v + '%'; } } } },
-                plugins: { legend: { display: false } },
-                onClick: function (e, itens) { if (itens.length) abrirDetalhe(ord[itens[0].index]); }
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (c) { return ' ' + num(c.parsed.x, 1) + '% de acerto'; } } } },
+                onClick: function (e, itens) { if (itens.length) abrirDetalhe(ord[itens[0].index].id, ord[itens[0].index].nome); },
+                onHover: function (e, itens) { e.native.target.style.cursor = itens.length ? 'pointer' : 'default'; }
             },
             plugins: [linhaMeta]
         });
     }
 
     function renderHoras() {
+        var s = D.semanal;
+        var vazio = s.horas.every(function (h) { return h === 0; });
+        if (estadoVazio('chartWeeklyHours', vazio, 'Sem minutos registrados nas últimas 8 semanas.')) return;
         criar('chartWeeklyHours', {
             type: 'bar',
             data: {
-                labels: SEMANAS,
+                labels: s.labels,
                 datasets: [
-                    { label: 'Planejado (h)', data: DEMO.planejado, backgroundColor: dark() ? '#475569' : '#cbd5e1', borderRadius: 4 },
-                    { label: 'Realizado (h)', data: DEMO.realizado, backgroundColor: '#4f46e5', borderRadius: 4 }
+                    { label: 'Planejado (h)', data: s.labels.map(function () { return s.planejado; }), backgroundColor: dark() ? '#475569' : '#cbd5e1', borderRadius: 4 },
+                    { label: 'Realizado (h)', data: s.horas, backgroundColor: '#4f46e5', borderRadius: 4 }
                 ]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
         });
     }
 
     function renderHeatmap() {
-        var cont = el('heatmapContainer');
+        var c = D.calor, box = $('heatmapContainer');
+        var algum = c.dias.some(function (m) { return m > 0; });
+        if (!algum) {
+            box.innerHTML = '<p class="text-xs text-gray-400 py-4">Sem estudo registrado nos últimos 90 dias.</p>';
+            return;
+        }
         var niveis = [
             'bg-gray-100 dark:bg-gray-700',
             'bg-indigo-200 dark:bg-indigo-900',
             'bg-indigo-400 dark:bg-indigo-700',
             'bg-indigo-600 dark:bg-indigo-500'
         ];
+        var ini = new Date(c.inicio + 'T12:00:00');
         var html = '<div class="flex gap-1">';
-        for (var c = 0; c < 13; c++) {
+        for (var col = 0; col < 13; col++) {
             html += '<div class="flex flex-col gap-1">';
-            for (var r = 0; r < 7; r++) {
-                var v = (c * 5 + r * 3 + (c % 3)) % 11;
-                var nivel = v < 3 ? 0 : v < 6 ? 1 : v < 9 ? 2 : 3;
-                html += '<div class="heatmap-cell ' + niveis[nivel] + '" title="Demonstração"></div>';
+            for (var row = 0; row < 7; row++) {
+                var i = col * 7 + row, m = c.dias[i];
+                if (m === null) { html += '<div class="heatmap-cell"></div>'; continue; }
+                var d = new Date(ini.getTime());
+                d.setDate(d.getDate() + i);
+                var nivel = m <= 0 ? 0 : m < c.meta * 0.4 ? 1 : m < c.meta * 0.8 ? 2 : 3;
+                html += '<div class="heatmap-cell ' + niveis[nivel] + '" title="' + pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() + ': ' + m + ' min"></div>';
             }
             html += '</div>';
         }
-        cont.innerHTML = html + '</div>';
+        box.innerHTML = html + '</div>';
     }
 
-    var ativas = new Set(['BD', 'SI', 'DA', 'CLE'].filter(function (s) { return DISC.some(function (d) { return d.sigla === s; }); }));
-    if (!ativas.size) DISC.slice(0, 4).forEach(function (d) { ativas.add(d.sigla); });
+    function garantirAtivas() {
+        var siglas = D.trajetoria.map(function (d) { return d.sigla; });
+        if (ativas) ativas = new Set(Array.from(ativas).filter(function (s) { return siglas.indexOf(s) !== -1; }));
+        if (!ativas || !ativas.size) {
+            var pref = ['BD', 'SI', 'DA', 'CLE'].filter(function (s) { return siglas.indexOf(s) !== -1; });
+            ativas = new Set(pref.length ? pref : siglas.slice(0, 4));
+        }
+    }
 
     function renderTrajetoria() {
-        var box = el('trajectorySubjectToggles');
+        garantirAtivas();
+        var box = $('trajectorySubjectToggles');
         box.innerHTML = '';
-        DISC.forEach(function (d) {
+        D.trajetoria.forEach(function (d) {
             var b = document.createElement('button');
             b.type = 'button';
             b.className = 'text-[10px] px-2 py-1 rounded-lg font-semibold transition-all ' +
@@ -197,51 +282,81 @@
             box.appendChild(b);
         });
 
-        var datasets = ACC.filter(function (d) { return ativas.has(d.sigla); }).map(function (d, i) {
-            var base = 55 + ((i * 3) % 10);
-            return {
-                label: d.nome, borderColor: d.cor, backgroundColor: d.cor, tension: 0.3,
-                data: [0, 1, 2, 3, 4].map(function (s) { return base + s * 4 + ((s * (i + 2)) % 3); })
-            };
-        });
+        var series = D.trajetoria.filter(function (d) { return ativas.has(d.sigla); });
+        var vazio = series.every(function (d) { return d.serie.every(function (v) { return v === null; }); });
+        if (estadoVazio('chartAccuracyTrajectory', vazio, 'Sem dados de acerto para as disciplinas selecionadas.')) return;
         criar('chartAccuracyTrajectory', {
             type: 'line',
-            data: { labels: ['Semana 1', 'Semana 3', 'Semana 5', 'Semana 7', 'Atual'], datasets: datasets },
+            data: {
+                labels: D.semanal.labels,
+                datasets: series.map(function (d) {
+                    return { label: d.nome, data: d.serie, borderColor: d.cor, backgroundColor: d.cor, tension: 0.3, spanGaps: true };
+                })
+            },
             options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 100, ticks: { callback: function (v) { return v + '%'; } } } } }
         });
     }
 
+    // ---------- tabela e detalhamento ----------
     function renderTabela() {
-        el('dashDisciplineTableBody').innerHTML = ACC.map(function (d) {
-            var ac = Math.round(d.qs * d.acc / 100), er = d.qs - ac;
+        var corpo = $('dashDisciplineTableBody');
+        if (!D.tabela.length) {
+            corpo.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-gray-400">Nenhuma disciplina neste filtro.</td></tr>';
+            return;
+        }
+        corpo.innerHTML = D.tabela.map(function (d) {
+            var acerto = d.pct === null
+                ? '<span class="text-gray-400">—</span>'
+                : '<span class="font-bold ' + (d.pct >= D.meta_acerto ? 'text-emerald-500' : 'text-rose-500') + '">' + num(d.pct, 0) + '%</span>';
             return '<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">' +
                 '<td class="p-3 font-semibold"><span class="inline-block w-3 h-3 rounded-full mr-2 align-middle" style="background-color:' + esc(d.cor) + '"></span>' + esc(d.nome) + '</td>' +
                 '<td class="p-3 text-center font-bold">' + d.peso + '</td>' +
-                '<td class="p-3 text-center">' + d.qs + ' <span class="text-emerald-500">(' + ac + ')</span> / <span class="text-rose-500">(' + er + ')</span></td>' +
-                '<td class="p-3 text-center font-bold ' + (d.acc >= 70 ? 'text-emerald-500' : 'text-rose-500') + '">' + d.acc + '%</td>' +
-                '<td class="p-3"><div class="flex items-center gap-2"><div class="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden"><div class="h-full bg-indigo-600 rounded-full" style="width:' + d.cov + '%"></div></div>' +
-                '<span class="text-[10px] font-bold text-gray-500">' + d.cov + '%</span></div></td>' +
-                '<td class="p-3 text-center"><button type="button" data-sigla="' + esc(d.sigla) + '" class="btn-detalhe text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 font-bold">Ver Lançamentos</button></td></tr>';
+                '<td class="p-3 text-center">' + d.questoes + ' <span class="text-emerald-500">(' + d.acertos + ')</span> / <span class="text-rose-500">(' + d.erros + ')</span></td>' +
+                '<td class="p-3 text-center">' + acerto + '</td>' +
+                '<td class="p-3"><div class="flex items-center gap-2"><div class="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden"><div class="h-full bg-indigo-600 rounded-full" style="width:' + d.cobertura + '%"></div></div>' +
+                '<span class="text-[10px] font-bold text-gray-500">' + d.cobertura + '%</span></div></td>' +
+                '<td class="p-3 text-center"><button type="button" data-id="' + d.id + '" data-nome="' + esc(d.nome) + '" class="btn-detalhe text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 font-bold">Ver Lançamentos</button></td></tr>';
         }).join('');
-        el('dashDisciplineTableBody').querySelectorAll('.btn-detalhe').forEach(function (b) {
-            b.addEventListener('click', function () {
-                abrirDetalhe(ACC.find(function (d) { return d.sigla === b.dataset.sigla; }));
-            });
+        corpo.querySelectorAll('.btn-detalhe').forEach(function (b) {
+            b.addEventListener('click', function () { abrirDetalhe(b.getAttribute('data-id'), b.getAttribute('data-nome')); });
         });
     }
 
-    // Modal de detalhamento (lançamentos reais no Lote 4)
-    function abrirDetalhe(d) {
-        el('drillDownModalTitle').textContent = 'Lançamentos: ' + (d ? d.nome : '');
-        el('drillDownModalTableBody').innerHTML =
-            '<tr><td colspan="5" class="p-4 text-center text-gray-400">Os lançamentos reais desta disciplina aparecem a partir do Lote 4.</td></tr>';
-        el('drillDownModal').classList.remove('hidden');
+    function abrirDetalhe(id, nome) {
+        var corpo = $('drillDownModalTableBody');
+        $('drillDownModalTitle').textContent = 'Lançamentos: ' + nome;
+        corpo.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400">Carregando...</td></tr>';
+        $('drillDownModal').classList.remove('hidden');
+
+        var qs = new URLSearchParams({ disciplina: id, periodo: fPer.value });
+        fetch(URL_API + 'lancamentos/?' + qs.toString(), { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+            .then(function (d) {
+                if (!d.itens.length) {
+                    corpo.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400">Nenhum lançamento neste período.</td></tr>';
+                    return;
+                }
+                corpo.innerHTML = d.itens.map(function (l) {
+                    return '<tr><td class="p-2.5">' + l.data + '</td><td class="p-2.5 font-medium">' + esc(l.topico) + '</td>' +
+                        '<td class="p-2.5 text-center">' + l.total + '</td>' +
+                        '<td class="p-2.5 text-center text-emerald-500 font-bold">' + l.acertos + '</td>' +
+                        '<td class="p-2.5 text-center font-bold ' + (l.pct >= D.meta_acerto ? 'text-emerald-500' : 'text-rose-500') + '">' + l.pct + '%</td></tr>';
+                }).join('');
+                if (d.total > d.itens.length) {
+                    corpo.innerHTML += '<tr><td colspan="5" class="p-3 text-center text-gray-400">Mostrando ' + d.itens.length + ' de ' + d.total + ' lançamentos.</td></tr>';
+                }
+            })
+            .catch(function () {
+                corpo.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-rose-500">Não foi possível carregar os lançamentos.</td></tr>';
+            });
     }
-    function fecharDetalhe() { el('drillDownModal').classList.add('hidden'); }
-    el('closeDrillDownModal').addEventListener('click', fecharDetalhe);
-    el('drillDownModal').addEventListener('click', function (e) { if (e.target === this) fecharDetalhe(); });
+
+    function fecharDetalhe() { $('drillDownModal').classList.add('hidden'); }
+    $('closeDrillDownModal').addEventListener('click', fecharDetalhe);
+    $('drillDownModal').addEventListener('click', function (e) { if (e.target === this) fecharDetalhe(); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') fecharDetalhe(); });
 
+    // ---------- orquestração ----------
     function renderTudo() {
         aplicarTemaChart();
         renderKpis();
@@ -255,6 +370,10 @@
         renderTabela();
     }
 
-    window.addEventListener('themechange', renderTudo);
-    renderTudo();
+    fConc.addEventListener('change', function () { fDisc.value = 'ALL'; carregar(); });
+    fDisc.addEventListener('change', carregar);
+    fPer.addEventListener('change', carregar);
+    window.addEventListener('themechange', function () { if (D) renderTudo(); });
+
+    carregar();
 })();
