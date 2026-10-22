@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Ajustes{% endblock %}
 
@@ -11,10 +12,10 @@
             <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-1">Configurações de Rotina</h2>
             <p class="text-xs text-gray-500 mb-5">Personalize seu tempo diário de estudos e dias de dedicação</p>
 
-            <form data-em-breve="6" class="space-y-4 text-xs">
+            <form id="formRotina" class="space-y-4 text-xs">
                 <div>
                     <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Minutos Padrão por Dia</label>
-                    <input type="number" name="minutos" min="30" max="600" value="{{ cfg.minutos_por_dia }}" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="number" id="rotMin" min="30" max="600" value="{{ cfg.minutos_por_dia }}" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
                 <div>
                     <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-2">Dias Ativos de Estudo</label>
@@ -26,26 +27,46 @@
                         {% endfor %}
                     </div>
                 </div>
-                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-xl transition-all">Salvar Preferências</button>
+                <div class="flex items-center gap-3">
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-xl transition-all">Salvar Preferências</button>
+                    <span id="rotMsg" class="text-xs font-medium"></span>
+                </div>
             </form>
         </div>
 
         <!-- Concursos -->
         <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm space-y-4">
-            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Concursos Cadastrados</h2>
-            <div class="space-y-2">
-                {% for c in concursos %}
-                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-xl px-4 py-3 text-xs">
-                    <div class="font-bold text-gray-900 dark:text-white">{{ c.nome }}</div>
-                    <div class="text-gray-500 dark:text-gray-400">{% if c.data_prova %}Data da prova: {{ c.data_prova|date:"d/m/Y" }}{% else %}Sem data de prova{% endif %}</div>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-white">Concursos Cadastrados</h2>
+                    <p class="text-xs text-gray-500">Cada concurso tem suas próprias disciplinas, edital e cronograma.</p>
+                </div>
+                <button type="button" id="btnNovoConc" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all">
+                    <i class="fa-solid fa-plus"></i> Novo concurso
+                </button>
+            </div>
+
+            <div id="concList" class="space-y-2">
+                {% for c in concursos_lista %}
+                <div data-id="{{ c.id }}" data-nome="{{ c.nome }}" data-data="{{ c.iso }}" data-disc="{{ c.n_disc }}" data-lanc="{{ c.n_lanc }}" data-itens="{{ c.n_itens }}"
+                     class="bg-gray-50 dark:bg-gray-700/50 rounded-xl px-4 py-3 text-xs flex flex-wrap items-center gap-3">
+                    <div class="flex-1 min-w-[200px]">
+                        <div class="font-bold text-gray-900 dark:text-white text-sm">
+                            {{ c.nome }}
+                            {% if c.ativo %}<span class="ml-2 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full">Ativo</span>{% endif %}
+                        </div>
+                        <div class="text-gray-500 dark:text-gray-400">{% if c.data_prova %}Data da prova: {{ c.data_prova|date:"d/m/Y" }}{% else %}Sem data de prova{% endif %}</div>
+                        <div class="text-[11px] text-gray-400">{{ c.n_disc }} disciplina{{ c.n_disc|pluralize }} · {{ c.n_lanc }} lançamento{{ c.n_lanc|pluralize }} · {{ c.n_itens }} ite{{ c.n_itens|pluralize:"m,ns" }} no cronograma</div>
+                    </div>
+                    <button type="button" data-acao="editar" title="Editar concurso" class="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"><i class="fa-solid fa-pen"></i></button>
+                    <button type="button" data-acao="excluir" title="Excluir concurso" class="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-rose-600"><i class="fa-solid fa-trash"></i></button>
+                </div>
+                {% empty %}
+                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-xl px-4 py-6 text-xs text-center text-gray-500 dark:text-gray-400">
+                    Nenhum concurso cadastrado. Clique em <strong>Novo concurso</strong> para começar.
                 </div>
                 {% endfor %}
             </div>
-            <form data-em-breve="6" class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                <input type="text" placeholder="Nome do concurso (ex.: TCU)" class="md:col-span-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
-                <input type="date" class="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
-                <button type="submit" class="md:col-span-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold py-2.5 px-4 rounded-xl transition-all">Adicionar Concurso</button>
-            </form>
         </div>
 
         <!-- Dados -->
@@ -58,12 +79,37 @@
                 <button type="button" data-em-breve="6" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white text-xs font-bold py-2.5 px-4 rounded-xl transition-all flex items-center gap-2">
                     <i class="fa-solid fa-upload"></i> Importar Backup
                 </button>
-                <button type="button" data-em-breve="6" class="bg-rose-100 hover:bg-rose-200 text-rose-800 dark:bg-rose-950 dark:text-rose-300 text-xs font-bold py-2.5 px-4 rounded-xl transition-all flex items-center gap-2 ml-auto">
-                    <i class="fa-solid fa-rotate-left"></i> Redefinir Dados Fictícios
-                </button>
             </div>
-            <p class="text-[11px] text-gray-400">Por enquanto, para recriar os dados fictícios use no terminal: <code>python manage.py seed_demo --reset</code></p>
         </div>
     </div>
 </section>
+
+<!-- Modal: concurso -->
+<div id="modalConc" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex hidden items-center justify-center p-4">
+    <form id="formConc" class="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-5 border border-gray-200 dark:border-gray-700 shadow-xl space-y-4 text-xs">
+        <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-3">
+            <h3 id="concModalTitulo" class="font-bold text-gray-900 dark:text-white text-base">Novo concurso</h3>
+            <button type="button" id="btnFecharConc" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <input type="hidden" id="concId">
+        <div>
+            <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Nome do concurso</label>
+            <input type="text" id="concNome" maxlength="120" required placeholder="Ex.: TCE-RJ - Auditor de TI" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div>
+            <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Data da prova (opcional)</label>
+            <input type="date" id="concData" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <p id="concAviso" class="text-gray-500 dark:text-gray-400">Ao criar, o novo concurso passa a ser o concurso ativo.</p>
+        <div id="concErro" class="hidden bg-rose-100 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300 p-3 rounded-xl"></div>
+        <div class="flex justify-end gap-2">
+            <button type="button" id="btnCancelarConc" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold py-2.5 px-4 rounded-xl">Cancelar</button>
+            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-xl">Salvar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/ajustes.js' %}"></script>
 {% endblock %}

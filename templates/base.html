@@ -75,7 +75,7 @@
                 <a href="{% url item.url %}" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all {% if request.resolver_match.url_name == item.url %}text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400{% else %}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50{% endif %}">
                     <i class="fa-solid {{ item.icone }} w-5"></i>
                     <span>{{ item.label }}</span>
-                    {% if item.url == 'hoje' %}<span class="ml-auto bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">3</span>{% endif %}{# TEMP: valor fixo até o Lote 5 #}
+                    {% if item.url == 'hoje' and hoje_pendentes %}<span class="ml-auto bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{{ hoje_pendentes }}</span>{% endif %}
                 </a>
                 {% endfor %}
             </nav>

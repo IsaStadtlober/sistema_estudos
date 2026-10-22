@@ -7,12 +7,21 @@
 <section class="space-y-6">
 
     <!-- Controles -->
-    <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Cronograma Inteligente</h2>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Distribuição automática baseada em peso e histórico de erros</p>
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Cronograma</h2>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Seu plano de estudos: importe o plano da IA ou monte e ajuste item por item</p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+            <button type="button" id="btnImportar" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition-all">
+                <i class="fa-solid fa-file-import"></i> Importar plano
+            </button>
+            <button type="button" id="btnNovoItem" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition-all">
+                <i class="fa-solid fa-plus"></i> Novo item
+            </button>
+            <button type="button" id="btnLimpar" class="bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-950/70 text-rose-700 dark:text-rose-300 font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition-all">
+                <i class="fa-solid fa-eraser"></i> Limpar período
+            </button>
             <div class="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
                 <button type="button" id="cronoBtnMonthView" class="px-3 py-1.5 rounded-lg text-xs font-semibold">Mês</button>
                 <button type="button" id="cronoBtnWeekView" class="px-3 py-1.5 rounded-lg text-xs font-semibold">Semana</button>
@@ -25,14 +34,8 @@
         </div>
     </div>
 
-    <!-- Aviso -->
-    <div class="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 p-4 rounded-xl flex items-center justify-between gap-3 text-xs text-indigo-900 dark:text-indigo-200">
-        <div class="flex items-center gap-2">
-            <i class="fa-solid fa-circle-info text-indigo-600 text-base"></i>
-            <span>A ordem dos tópicos considera o <strong>peso</strong> de cada disciplina e o que falta do edital. O ajuste automático por <strong>desempenho</strong> entra no Lote 5.</span>
-        </div>
-        <button type="button" data-em-breve="5" class="font-bold underline text-indigo-700 hover:text-indigo-900 dark:text-indigo-300 whitespace-nowrap">Ver Lógica</button>
-    </div>
+    <!-- Situação do plano -->
+    <div id="cronoBanner" class="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 p-4 rounded-xl flex items-center gap-2 text-xs text-indigo-900 dark:text-indigo-200"></div>
 
     <!-- Calendário (telas maiores) -->
     <div class="hidden md:block bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -50,13 +53,128 @@
 
     <!-- Detalhes do dia -->
     <div class="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
-        <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3 mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 dark:border-gray-700 pb-3 mb-4">
             <h3 id="cronoDrawerTitle" class="font-bold text-gray-900 dark:text-white text-sm"></h3>
-            <span id="cronoDrawerStatus" class="text-xs font-bold px-2.5 py-0.5 rounded-full"></span>
+            <div class="flex items-center gap-2">
+                <span id="cronoDrawerStatus" class="text-xs font-bold px-2.5 py-0.5 rounded-full"></span>
+                <button type="button" id="btnAddNoDia" class="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"><i class="fa-solid fa-plus mr-1"></i>Adicionar neste dia</button>
+                <button type="button" id="btnExcluirDia" class="hidden text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline"><i class="fa-solid fa-trash mr-1"></i>Excluir dia</button>
+            </div>
         </div>
         <div id="cronoDrawerContent" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs"></div>
     </div>
 </section>
+
+<!-- Modal: item do plano -->
+<div id="modalItem" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex hidden items-center justify-center p-4">
+    <form id="formItem" class="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full p-5 border border-gray-200 dark:border-gray-700 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto text-xs">
+        <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-3">
+            <h3 id="itemModalTitulo" class="font-bold text-gray-900 dark:text-white text-base">Novo item</h3>
+            <button type="button" data-fechar="modalItem" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <input type="hidden" id="itemId">
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Data (altere para mover)</label>
+                <input type="date" id="itemData" required class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Tipo</label>
+                <select id="itemTipo" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="teoria">Teoria</option>
+                    <option value="questoes">Questões</option>
+                    <option value="revisao">Revisão</option>
+                    <option value="simulado">Simulado</option>
+                </select>
+            </div>
+        </div>
+        <div>
+            <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Disciplina</label>
+            <select id="itemDisc" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"></select>
+        </div>
+        <div>
+            <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Tópico</label>
+            <select id="itemTopico" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"></select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Minutos</label>
+                <input type="number" id="itemMin" min="0" max="600" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div id="itemQuestWrap">
+                <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Nº de questões</label>
+                <input type="number" id="itemQuest" min="0" max="500" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+        </div>
+        <div>
+            <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Observação</label>
+            <input type="text" id="itemObs" maxlength="300" placeholder="Opcional" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div id="itemErro" class="hidden bg-rose-100 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300 p-3 rounded-xl"></div>
+        <div class="flex items-center justify-between gap-2">
+            <button type="button" id="btnExcluirItem" class="hidden text-rose-600 dark:text-rose-400 font-bold hover:underline"><i class="fa-solid fa-trash mr-1"></i>Excluir</button>
+            <div class="flex gap-2 ml-auto">
+                <button type="button" data-fechar="modalItem" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold py-2.5 px-4 rounded-xl">Cancelar</button>
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-xl">Salvar</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Modal: importar plano -->
+<div id="modalImport" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex hidden items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-3xl w-full p-5 border border-gray-200 dark:border-gray-700 shadow-xl max-h-[90vh] flex flex-col text-xs space-y-3">
+        <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-3">
+            <h3 class="font-bold text-gray-900 dark:text-white text-base">Importar plano (JSON da IA)</h3>
+            <button type="button" data-fechar="modalImport" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <div class="overflow-y-auto custom-scrollbar flex-1 space-y-3 pr-1">
+            <p class="text-gray-500 dark:text-gray-400">Cole o JSON com as chaves <code>edital</code> e <code>cronograma</code>. Primeiro clique em <strong>Analisar</strong>: nada é gravado até você confirmar.</p>
+            <textarea id="impTexto" rows="9" spellcheck="false" placeholder="Cole o JSON aqui" class="w-full font-mono text-[11px] bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+            <label class="flex items-start gap-2 text-gray-700 dark:text-gray-300 cursor-pointer">
+                <input type="checkbox" id="impSubstituir" checked class="mt-0.5 rounded text-indigo-600">
+                <span>Substituir os itens <strong>não concluídos</strong> do período coberto pelo plano. Itens concluídos nunca são removidos. Desmarque para apenas adicionar.</span>
+            </label>
+            <div id="impPrevia" class="space-y-3"></div>
+        </div>
+        <div class="flex justify-end gap-2 border-t border-gray-200 dark:border-gray-700 pt-3">
+            <button type="button" data-fechar="modalImport" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold py-2.5 px-4 rounded-xl">Fechar</button>
+            <button type="button" id="btnAnalisar" class="bg-gray-800 hover:bg-gray-900 dark:bg-gray-600 dark:hover:bg-gray-500 text-white font-bold py-2.5 px-4 rounded-xl">Analisar</button>
+            <button type="button" id="btnConfirmarImport" disabled class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed">Confirmar importação</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: limpar período -->
+<div id="modalLimpar" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex hidden items-center justify-center p-4">
+    <form id="formLimpar" class="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-5 border border-gray-200 dark:border-gray-700 shadow-xl space-y-4 text-xs">
+        <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-3">
+            <h3 class="font-bold text-gray-900 dark:text-white text-base">Limpar período</h3>
+            <button type="button" data-fechar="modalLimpar" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <p class="text-gray-500 dark:text-gray-400">Exclui os itens do cronograma entre as duas datas. Você verá quantos serão apagados antes de confirmar.</p>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">De</label>
+                <input type="date" id="limIni" required class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Até</label>
+                <input type="date" id="limFim" required class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+        </div>
+        <button type="button" id="limTodo" class="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">Selecionar todo o plano</button>
+        <label class="flex items-start gap-2 text-gray-700 dark:text-gray-300 cursor-pointer">
+            <input type="checkbox" id="limConcl" class="mt-0.5 rounded text-indigo-600">
+            <span>Incluir também os itens já concluídos (por padrão eles são mantidos)</span>
+        </label>
+        <div id="limErro" class="hidden bg-rose-100 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300 p-3 rounded-xl"></div>
+        <div class="flex justify-end gap-2">
+            <button type="button" data-fechar="modalLimpar" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold py-2.5 px-4 rounded-xl">Cancelar</button>
+            <button type="submit" class="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 px-5 rounded-xl">Continuar</button>
+        </div>
+    </form>
+</div>
 
 {{ dados|json_script:"dados-cronograma" }}
 {% endblock %}

@@ -96,25 +96,36 @@
                     <span class="bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Plano de Hoje</span>
                     <i class="fa-solid fa-rocket text-indigo-200 text-lg"></i>
                 </div>
+                {% if plano.tem_plano %}
                 <h3 class="text-lg font-bold mb-1">Rotina: {{ plano.minutos }} minutos</h3>
-                <p class="text-xs text-indigo-100 mb-4">3 blocos programados para manter sua alta performance.</p>
+                <p class="text-xs text-indigo-100 mb-4">{{ plano.itens }} ite{{ plano.itens|pluralize:"m,ns" }} planejado{{ plano.itens|pluralize }} para hoje.</p>
                 <div class="space-y-2 text-xs">
+                    {% if plano.m_teoria %}
                     <div class="bg-white/10 backdrop-blur-sm p-2.5 rounded-xl flex items-center justify-between gap-2">
                         <span class="flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-book text-blue-300"></i> Teoria ({{ plano.m_teoria }} min)</span>
-                        <span class="font-semibold text-right truncate max-w-[140px]">{% if plano.teoria %}{{ plano.teoria.disciplina }}{% else %}Concluída{% endif %}</span>
+                        <span class="font-semibold text-right truncate max-w-[140px]">{{ plano.d_teoria }}</span>
                     </div>
+                    {% endif %}
+                    {% if plano.m_questoes %}
                     <div class="bg-white/10 backdrop-blur-sm p-2.5 rounded-xl flex items-center justify-between gap-2">
                         <span class="flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-pen text-emerald-300"></i> Questões ({{ plano.m_questoes }} min)</span>
-                        <span class="font-semibold text-right truncate max-w-[140px]">{% if plano.questoes %}{{ plano.questoes.disciplina }}{% else %}—{% endif %}</span>
+                        <span class="font-semibold text-right truncate max-w-[140px]">{{ plano.d_questoes }}</span>
                     </div>
+                    {% endif %}
+                    {% if plano.m_revisao %}
                     <div class="bg-white/10 backdrop-blur-sm p-2.5 rounded-xl flex items-center justify-between gap-2">
                         <span class="flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-rotate-right text-purple-300"></i> Revisão ({{ plano.m_revisao }} min)</span>
-                        <span class="font-semibold text-right truncate max-w-[140px]">{% if plano.revisao %}{{ plano.revisao.disciplina }}{% else %}Nenhuma vencida{% endif %}</span>
+                        <span class="font-semibold text-right truncate max-w-[140px]">{{ plano.d_revisao }}</span>
                     </div>
+                    {% endif %}
                 </div>
+                {% else %}
+                <h3 class="text-lg font-bold mb-1">Nada planejado para hoje</h3>
+                <p class="text-xs text-indigo-100">Monte ou importe seu plano no Cronograma para ver aqui o que estudar.</p>
+                {% endif %}
             </div>
-            <a href="{% url 'hoje' %}" class="mt-4 w-full bg-white text-indigo-700 hover:bg-indigo-50 font-bold py-2.5 px-4 rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-2">
-                <span>Ir para Sessão de Estudo</span>
+            <a href="{% if plano.tem_plano %}{% url 'hoje' %}{% else %}{% url 'cronograma' %}{% endif %}" class="mt-4 w-full bg-white text-indigo-700 hover:bg-indigo-50 font-bold py-2.5 px-4 rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-2">
+                <span>{% if plano.tem_plano %}Ir para Sessão de Estudo{% else %}Montar meu plano{% endif %}</span>
                 <i class="fa-solid fa-arrow-right"></i>
             </a>
         </div>

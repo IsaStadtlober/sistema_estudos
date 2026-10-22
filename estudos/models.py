@@ -100,7 +100,7 @@ class Lancamento(models.Model):
 
 
 class BlocoConcluido(models.Model):
-    """Blocos do plano do dia marcados como concluídos."""
+    """Blocos do plano provisório do dia marcados como concluídos."""
 
     class Tipo(models.TextChoices):
         TEORIA = "teoria", "Teoria"
@@ -115,6 +115,43 @@ class BlocoConcluido(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["data", "tipo", "topico"], name="uniq_bloco_dia"),
         ]
+
+
+class ItemCronograma(models.Model):
+    """Item do plano de estudos: cadastrado à mão ou importado do JSON da IA."""
+
+    class Tipo(models.TextChoices):
+        TEORIA = "teoria", "Teoria"
+        QUESTOES = "questoes", "Questões"
+        REVISAO = "revisao", "Revisão"
+        SIMULADO = "simulado", "Simulado"
+
+    concurso = models.ForeignKey(Concurso, on_delete=models.CASCADE, related_name="itens_cronograma")
+    data = models.DateField()
+    tipo = models.CharField(max_length=10, choices=Tipo.choices)
+    disciplina = models.ForeignKey(
+        Disciplina, null=True, blank=True, on_delete=models.CASCADE, related_name="itens_cronograma"
+    )
+    topico = models.ForeignKey(
+        Topico, null=True, blank=True, on_delete=models.CASCADE, related_name="itens_cronograma"
+    )
+    minutos = models.PositiveSmallIntegerField(default=0)
+    questoes = models.PositiveSmallIntegerField(null=True, blank=True)
+    obs = models.CharField(max_length=300, blank=True)
+    concluido = models.BooleanField(default=False)
+    ordem = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["data", "ordem", "id"]
+        indexes = [models.Index(fields=["concurso", "data"])]
+
+    def save(self, *args, **kwargs):
+        if self.topico_id:  # a disciplina sempre acompanha o tópico
+            self.disciplina_id = self.topico.disciplina_id
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.data} · {self.tipo} · {self.topico or self.disciplina or '-'}"
 
 
 class Configuracao(models.Model):

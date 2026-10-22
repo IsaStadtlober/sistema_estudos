@@ -2,17 +2,17 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from .models import Concurso, Configuracao, Lancamento
+from .models import Concurso, Configuracao, ItemCronograma, Lancamento
 
 NAV_ITENS = [
     {"url": "dashboard", "label": "Dashboard", "icone": "fa-chart-pie"},
     {"url": "hoje", "label": "Hoje", "icone": "fa-calendar-day"},
     {"url": "cronograma", "label": "Cronograma", "icone": "fa-calendar-alt"},
+    {"url": "disciplinas", "label": "Disciplinas", "icone": "fa-book"},
     {"url": "edital", "label": "Edital Verticalizado", "icone": "fa-list-check"},
     {"url": "lancar", "label": "Lançar Resultado", "icone": "fa-plus-circle"},
     {"url": "ajustes", "label": "Ajustes", "icone": "fa-sliders"},
 ]
-
 
 def obter_concurso_ativo():
     cfg = Configuracao.obter()
@@ -47,12 +47,18 @@ def sidebar(request):
     cfg = Configuracao.obter()
     ativo = cfg.concurso_ativo or Concurso.objects.first()
     dias_prova = None
-    if ativo and ativo.data_prova:
-        dias_prova = (ativo.data_prova - timezone.localdate()).days
+    pendentes = None
+    if ativo:
+        if ativo.data_prova:
+            dias_prova = (ativo.data_prova - timezone.localdate()).days
+        itens_hoje = ItemCronograma.objects.filter(concurso=ativo, data=timezone.localdate())
+        if itens_hoje.exists():
+            pendentes = itens_hoje.filter(concluido=False).count()
     return {
         "nav_itens": NAV_ITENS,
         "concursos": Concurso.objects.all(),
         "concurso_ativo": ativo,
         "dias_prova": dias_prova,
         "ofensiva": calcular_ofensiva(ativo, cfg.dias_ativos),
+        "hoje_pendentes": pendentes,
     }

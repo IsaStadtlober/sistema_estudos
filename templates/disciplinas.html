@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Disciplinas{% endblock %}
+
+{% block content %}
+<section class="space-y-6">
+
+    <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Disciplinas</h2>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Disciplinas e tópicos do concurso ativo: <strong>{{ concurso_ativo.nome }}</strong></p>
+        </div>
+        <button type="button" id="btnNovaDisc" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all">
+            <i class="fa-solid fa-plus"></i> Nova disciplina
+        </button>
+    </div>
+
+    <div id="discLista" class="space-y-3"></div>
+</section>
+
+<!-- Modal: disciplina -->
+<div id="modalDisc" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex hidden items-center justify-center p-4">
+    <form id="formDisc" class="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-5 border border-gray-200 dark:border-gray-700 shadow-xl space-y-4 text-xs">
+        <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-3">
+            <h3 id="discModalTitulo" class="font-bold text-gray-900 dark:text-white text-base">Nova disciplina</h3>
+            <button type="button" id="btnFecharDisc" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <input type="hidden" id="discId">
+        <div>
+            <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Nome</label>
+            <input type="text" id="discNome" maxlength="120" required class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+            <div class="col-span-2">
+                <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Peso na prova</label>
+                <select id="discPeso" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="1">1 · menor peso</option>
+                    <option value="2">2 · peso médio</option>
+                    <option value="3">3 · maior peso</option>
+                </select>
+            </div>
+            <div>
+                <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Cor</label>
+                <input type="color" id="discCor" class="w-full h-[42px] bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-1 rounded-xl cursor-pointer">
+            </div>
+        </div>
+        <div>
+            <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Sigla (até 6 letras ou números)</label>
+            <input type="text" id="discSigla" maxlength="6" placeholder="Automática se deixar em branco" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 uppercase">
+        </div>
+        <div id="discErro" class="hidden bg-rose-100 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300 p-3 rounded-xl"></div>
+        <div class="flex justify-end gap-2">
+            <button type="button" id="btnCancelarDisc" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold py-2.5 px-4 rounded-xl">Cancelar</button>
+            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-xl">Salvar</button>
+        </div>
+    </form>
+</div>
+
+{{ dados|json_script:"dados-disciplinas" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/disciplinas.js' %}"></script>
+{% endblock %}

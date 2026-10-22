@@ -1,8 +1,8 @@
 from django.contrib import admin
 
 from .models import (
-    BlocoConcluido, Concurso, Configuracao, Disciplina, Lancamento,
-    ProgressoTopico, RevisaoFeita, Topico,
+    BlocoConcluido, Concurso, Configuracao, Disciplina, ItemCronograma,
+    Lancamento, ProgressoTopico, RevisaoFeita, Topico,
 )
 
 
@@ -33,6 +33,13 @@ class ProgressoAdmin(admin.ModelAdmin):
 class LancamentoAdmin(admin.ModelAdmin):
     list_display = ("data", "topico", "total", "acertos", "minutos")
     list_filter = ("topico__disciplina",)
+    date_hierarchy = "data"
+
+
+@admin.register(ItemCronograma)
+class ItemCronogramaAdmin(admin.ModelAdmin):
+    list_display = ("data", "tipo", "disciplina", "topico", "minutos", "questoes", "concluido")
+    list_filter = ("concurso", "tipo", "concluido")
     date_hierarchy = "data"
 
 
