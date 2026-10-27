@@ -13,7 +13,7 @@
         </div>
         <div class="relative">
             <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
-            <input id="editalSearchInput" type="text" placeholder="Buscar tópico..." class="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white pl-8 pr-3 py-2 text-xs rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 w-48 md:w-64">
+            <input id="editalSearchInput" type="text" placeholder="Buscar tópico ou subtópico..." class="bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white pl-8 pr-3 py-2 text-xs rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 w-56 md:w-72">
         </div>
     </div>
 
@@ -39,28 +39,40 @@
                 </div>
                 <i class="chev fa-solid fa-chevron-down text-gray-400 transition-transform"></i>
             </div>
-            <div class="edital-corpo p-4 space-y-2">
+            <div class="edital-corpo p-4 space-y-3">
                 {% for t in d.topicos %}
-                <div class="edital-topico p-3 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-100 dark:border-gray-700/50 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs" data-nome="{{ t.nome }}">
-                    <div class="font-medium text-gray-800 dark:text-gray-200">{{ t.nome }}</div>
-                    <div class="flex items-center gap-4">
-                        <label class="flex items-center gap-1.5 cursor-pointer">
-                            <input type="checkbox" data-em-breve="6" {% if t.teoria %}checked{% endif %} class="rounded text-indigo-600 focus:ring-indigo-500">
-                            <span class="text-gray-600 dark:text-gray-400">Teoria</span>
-                        </label>
-                        <label class="flex items-center gap-1.5 cursor-pointer">
-                            <input type="checkbox" data-em-breve="6" {% if t.questoes %}checked{% endif %} class="rounded text-emerald-600 focus:ring-emerald-500">
-                            <span class="text-gray-600 dark:text-gray-400">Questões</span>
-                        </label>
-                        <span class="bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-bold px-2 py-0.5 rounded-full text-[10px]">Rev {{ t.revisoes }}/4</span>
+                <div class="edital-topico p-3 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-100 dark:border-gray-700/50 text-xs" data-nome="{{ t.nome }} {{ t.busca }}">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div class="font-medium text-gray-800 dark:text-gray-200">
+                            {{ t.nome }}
+                            {% if t.subs %}<span class="ml-1 text-[10px] font-normal text-gray-400">({{ t.subs|length }} subtópico{{ t.subs|length|pluralize }})</span>{% endif %}
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <label class="flex items-center gap-1.5 cursor-pointer">
+                                <input type="checkbox" data-em-breve="6" {% if t.teoria %}checked{% endif %} class="rounded text-indigo-600 focus:ring-indigo-500">
+                                <span class="text-gray-600 dark:text-gray-400">Teoria</span>
+                            </label>
+                            <label class="flex items-center gap-1.5 cursor-pointer">
+                                <input type="checkbox" data-em-breve="6" {% if t.questoes %}checked{% endif %} class="rounded text-emerald-600 focus:ring-emerald-500">
+                                <span class="text-gray-600 dark:text-gray-400">Questões</span>
+                            </label>
+                            <span class="bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-bold px-2 py-0.5 rounded-full text-[10px]">Rev {{ t.revisoes }}/4</span>
+                        </div>
                     </div>
+                    {% if t.subs %}
+                    <ul class="mt-3 mb-1 ml-6 space-y-2">
+                        {% for s in t.subs %}
+                        <li class="pl-3 border-l-2 border-indigo-300 dark:border-indigo-500/60 text-[11px] text-gray-600 dark:text-gray-300">{{ s }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
                 </div>
                 {% endfor %}
             </div>
         </div>
         {% empty %}
         <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 text-sm text-gray-500 text-center">
-            Este concurso ainda não tem disciplinas. O cadastro chega no Lote 6.
+            Este concurso ainda não tem disciplinas. Cadastre em <a href="{% url 'disciplinas' %}" class="underline text-indigo-600 dark:text-indigo-400">Disciplinas</a> ou importe um plano no Cronograma.
         </div>
         {% endfor %}
         <div id="editalVazio" class="hidden bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 text-sm text-gray-500 text-center">

@@ -8,7 +8,7 @@ from django.views.decorators.http import require_POST
 
 from . import ajustes_svc, edicao
 from .context import obter_concurso_ativo
-from .models import Concurso, Configuracao, Lancamento, Topico
+from .models import Concurso, Configuracao, Lancamento, Subtopico, Topico
 
 DIAS_SEMANA = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
 
@@ -162,6 +162,11 @@ def edital(request):
     ativo = obter_concurso_ativo()
     discs, total, feitos = [], 0, 0
     if ativo:
+        # Subtópicos numa consulta separada, agrupados por tópico
+        subs = {}
+        for s in Subtopico.objects.filter(topico__disciplina__concurso=ativo).order_by("ordem", "id"):
+            subs.setdefault(s.topico_id, []).append(s.nome)
+
         qs = ativo.disciplinas.prefetch_related(
             Prefetch("topicos", queryset=Topico.objects.select_related("progresso").annotate(n_rev=Count("revisoes")))
         )
@@ -169,12 +174,15 @@ def edital(request):
             itens = []
             for t in d.topicos.all():
                 p = getattr(t, "progresso", None)
+                nomes = subs.get(t.id, [])
                 itens.append({
                     "id": t.id,
                     "nome": t.nome,
                     "teoria": bool(p and p.teoria_concluida),
                     "questoes": bool(p and p.questoes_feitas),
                     "revisoes": t.n_rev,
+                    "subs": nomes,
+                    "busca": " ".join(nomes),
                 })
             n_teoria = sum(1 for i in itens if i["teoria"])
             total += len(itens)
