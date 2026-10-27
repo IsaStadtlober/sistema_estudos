@@ -55,9 +55,9 @@
     // ----- renderização -----
     function listaSub(t) {
         if (!t.subtopicos.length) return '';
-        return '<ul class="mt-2 ml-5 pl-3 border-l-2 border-gray-200 dark:border-gray-600 space-y-1">' +
+        return '<ul class="mt-3 mb-1 ml-6 space-y-2">' +
             t.subtopicos.map(function (s) {
-                return '<li class="flex items-center gap-2">' +
+                return '<li class="flex items-center gap-2 pl-3 border-l-2 border-indigo-300 dark:border-indigo-500/60">' +
                     '<span class="flex-1 min-w-0 text-gray-600 dark:text-gray-300">' + esc(s.nome) + '</span>' +
                     botao('editar-sub', s.id, 'fa-pen', 'Renomear subtópico', '', BTN_P) +
                     botao('excluir-sub', s.id, 'fa-trash', 'Excluir subtópico', ' hover:text-rose-600', BTN_P) + '</li>';
@@ -65,7 +65,7 @@
     }
 
     function formSub(t) {
-        return '<form data-form-sub="' + t.id + '" class="mt-2 ml-5 flex flex-col sm:flex-row gap-2">' +
+        return '<div class="p-2.5 bg-gray-50/60 dark:bg-gray-700/30 rounded-xl">' +
             '<textarea rows="3" placeholder="Digite os subtópicos, um por linha" class="flex-1 min-w-0 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"></textarea>' +
             '<div class="flex sm:flex-col gap-2">' +
             '<button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2.5 rounded-xl">Adicionar</button>' +
@@ -75,7 +75,7 @@
 
     function linhaTopico(t) {
         var n = t.subtopicos.length;
-        return '<div class="p-2.5 bg-gray-50/60 dark:bg-gray-700/30 rounded-xl">' +
+        return '<div class="p-3 bg-gray-50/60 dark:bg-gray-700/30 rounded-xl">' +
             '<div class="flex items-center gap-2">' +
             '<span class="flex-1 min-w-0 text-gray-800 dark:text-gray-200">' + esc(t.nome) +
             (n ? ' <span class="text-[10px] text-gray-400">(' + plural(n, 'subtópico', 'subtópicos') + ')</span>' : '') + '</span>' +
@@ -87,7 +87,7 @@
     }
 
     function corpo(d) {
-        var h = '<div class="border-t border-gray-100 dark:border-gray-700 p-4 space-y-2 text-xs">';
+        var h = '<div class="border-t border-gray-100 dark:border-gray-700 p-4 space-y-3 text-xs">';
         h += d.topicos.length ? d.topicos.map(linhaTopico).join('') : '<p class="text-gray-400">Nenhum tópico ainda.</p>';
         h += '<form data-form-topico="' + d.id + '" class="flex gap-2 pt-2">' +
             '<input type="text" maxlength="200" placeholder="Novo tópico" class="flex-1 min-w-0 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">' +
