@@ -60,6 +60,21 @@ class Topico(models.Model):
     def __str__(self):
         return self.nome
 
+class Subtopico(models.Model):
+    """Item de detalhe dentro de um tópico do edital."""
+    topico = models.ForeignKey(Topico, on_delete=models.CASCADE, related_name="subtopicos")
+    nome = models.CharField(max_length=200)
+    ordem = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["ordem", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["topico", "nome"], name="uniq_subtopico_por_topico"),
+        ]
+
+    def __str__(self):
+        return f"{self.topico} › {self.nome}"
+
 
 class ProgressoTopico(models.Model):
     """Estado do edital verticalizado para um tópico."""

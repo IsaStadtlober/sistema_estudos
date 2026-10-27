@@ -198,3 +198,14 @@ def concurso_excluir(request, pk):
 @require_POST
 def rotina_salvar(request):
     return _executar(request, lambda c: {"ok": True, **ajustes_svc.salvar_rotina(c)})
+
+# ---------- Subtópicos ----------
+
+@require_POST
+def subtopico_salvar(request):
+    return _com_concurso(request, lambda a, c: {"ok": True, **edicao.salvar_subtopico(a, c)})
+
+
+@require_POST
+def subtopico_excluir(request, pk):
+    return _com_concurso(request, lambda a, c: {"ok": True, **edicao.excluir_subtopico(a, pk)})

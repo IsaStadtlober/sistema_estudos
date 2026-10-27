@@ -6,7 +6,7 @@ from datetime import date
 from django.db import transaction
 from django.db.models import Count, Max, Prefetch
 
-from .models import ItemCronograma, Lancamento, Topico
+from .models import ItemCronograma, Lancamento, Subtopico, Topico
 from .plano import _cor, _inteiro, _sigla, norm
 
 
@@ -46,62 +46,37 @@ def listar_disciplinas(concurso):
 
 # ---------- disciplinas ----------
 
-def salvar_disciplina(concurso, c):
-    nome = re.sub(r"\s+", " ", str(c.get("nome") or "")).strip()
-    if not nome:
-        raise ValueError("Informe o nome da disciplina.")
-    if len(nome) > 120:
-        raise ValueError("Nome muito longo (máximo de 120 caracteres).")
+def listar_disciplinas(concurso):
+    dados = {"concurso": concurso.nome if concurso else "", "disciplinas": []}
+    if concurso is None:
+        return dados
 
-    bruto_peso = c.get("peso")
-    if bruto_peso in (None, ""):
-        peso = None  # ainda sem peso definido
-    else:
-        try:
-            peso = int(bruto_peso)
-        except (TypeError, ValueError):
-            raise ValueError("Peso inválido.")
-        if not 1 <= peso <= 3:
-            raise ValueError("O peso deve ser 1, 2 ou 3, ou ficar em branco.")
+    # Subtópicos numa consulta separada, agrupados por tópico
+    subs = {}
+    for s in Subtopico.objects.filter(topico__disciplina__concurso=concurso).order_by("ordem", "id"):
+        subs.setdefault(s.topico_id, []).append({"id": s.id, "nome": s.nome})
 
-    cor = str(c.get("cor") or "").strip()
-    if cor and not re.fullmatch(r"#[0-9a-fA-F]{6}", cor):
-        raise ValueError("Cor inválida.")
-
-    todas = list(concurso.disciplinas.all())
-    disc = None
-    if c.get("id"):
-        pk = _inteiro(c["id"], "Disciplina", 1, 10**9)
-        disc = next((d for d in todas if d.pk == pk), None)
-        if disc is None:
-            raise ValueError("Disciplina não encontrada.")
-    outras = [d for d in todas if disc is None or d.pk != disc.pk]
-
-    if any(norm(d.nome) == norm(nome) for d in outras):
-        raise ValueError("Já existe uma disciplina com esse nome neste concurso.")
-
-    usadas = [d.sigla for d in outras]
-    sigla = re.sub(r"[^A-Za-z0-9]", "", str(c.get("sigla") or "")).upper()[:6]
-    if sigla:
-        if sigla in usadas:
-            raise ValueError(f'A sigla "{sigla}" já está em uso.')
-    elif disc:
-        sigla = disc.sigla
-    else:
-        sigla = _sigla(nome, usadas)
-
-    if disc is None:
-        mx = concurso.disciplinas.aggregate(m=Max("ordem"))["m"]
-        from .models import Disciplina
-        return Disciplina.objects.create(
-            concurso=concurso, nome=nome, sigla=sigla, peso=peso,
-            cor=cor or _cor([d.cor for d in todas]), ordem=0 if mx is None else mx + 1,
+    qs = (
+        concurso.disciplinas
+        .annotate(
+            n_lanc=Count("topicos__lancamentos", distinct=True),
+            n_itens=Count("itens_cronograma", distinct=True),
         )
-    disc.nome, disc.sigla, disc.peso = nome, sigla, peso
-    if cor:
-        disc.cor = cor
-    disc.save()
-    return disc
+        .prefetch_related(
+            Prefetch("topicos", queryset=Topico.objects.annotate(n_lanc=Count("lancamentos")))
+        )
+    )
+    for d in qs:
+        topicos = list(d.topicos.all())
+        dados["disciplinas"].append({
+            "id": d.id, "nome": d.nome, "sigla": d.sigla, "peso": d.peso, "cor": d.cor,
+            "n_topicos": len(topicos), "n_lancamentos": d.n_lanc, "n_itens": d.n_itens,
+            "topicos": [
+                {"id": t.id, "nome": t.nome, "n_lancamentos": t.n_lanc, "subtopicos": subs.get(t.id, [])}
+                for t in topicos
+            ],
+        })
+    return dados
 
 
 @transaction.atomic
@@ -204,3 +179,72 @@ def excluir_itens(concurso, inicio, fim, incluir_concluidos=False, confirmar=Fal
     if confirmar and n:
         qs.delete()
     return {"itens": n, "apagado": bool(confirmar and n)}
+
+
+
+# ---------- subtópicos ----------
+
+def salvar_subtopico(concurso, c):
+    """Renomeia (com 'id') ou cria um ou vários (com 'topico_id' e 'nomes', um por linha)."""
+    if c.get("id"):
+        pk = _inteiro(c["id"], "Subtópico", 1, 10**9)
+        sub = Subtopico.objects.filter(pk=pk, topico__disciplina__concurso=concurso).first()
+        if sub is None:
+            raise ValueError("Subtópico não encontrado.")
+        nome = re.sub(r"\s+", " ", str(c.get("nome") or "")).strip()
+        if not nome:
+            raise ValueError("Informe o nome do subtópico.")
+        if len(nome) > 200:
+            raise ValueError("Nome muito longo (máximo de 200 caracteres).")
+        for x in Subtopico.objects.filter(topico_id=sub.topico_id).exclude(pk=sub.pk):
+            if norm(x.nome) == norm(nome):
+                raise ValueError("Já existe um subtópico com esse nome neste tópico.")
+        sub.nome = nome
+        sub.save(update_fields=["nome"])
+        return {"criados": 0, "repetidos": 0}
+
+    pk = _inteiro(c.get("topico_id"), "Tópico", 1, 10**9)
+    topico = Topico.objects.filter(pk=pk, disciplina__concurso=concurso).first()
+    if topico is None:
+        raise ValueError("Tópico não encontrado.")
+
+    bruto = c.get("nomes")
+    if bruto is None:
+        bruto = [c.get("nome")]
+    elif isinstance(bruto, str):
+        bruto = bruto.splitlines()
+    if not isinstance(bruto, list):
+        raise ValueError("Subtópicos inválidos.")
+    nomes = [re.sub(r"\s+", " ", str(x or "")).strip() for x in bruto]
+    nomes = [n for n in nomes if n]
+    if not nomes:
+        raise ValueError("Informe o nome do subtópico.")
+    if len(nomes) > 200:
+        raise ValueError("Máximo de 200 subtópicos por vez.")
+    if any(len(n) > 200 for n in nomes):
+        raise ValueError("Há nome com mais de 200 caracteres.")
+
+    atuais = list(Subtopico.objects.filter(topico=topico))
+    existentes = {norm(s.nome) for s in atuais}
+    ordem = max((s.ordem for s in atuais), default=-1)
+    novos, repetidos = [], 0
+    for n in nomes:
+        k = norm(n)
+        if k in existentes:
+            repetidos += 1
+            continue
+        existentes.add(k)
+        ordem += 1
+        novos.append(Subtopico(topico=topico, nome=n, ordem=ordem))
+    if not novos:
+        raise ValueError("Esses subtópicos já existem neste tópico.")
+    Subtopico.objects.bulk_create(novos)
+    return {"criados": len(novos), "repetidos": repetidos}
+
+
+def excluir_subtopico(concurso, pk):
+    sub = Subtopico.objects.filter(pk=pk, topico__disciplina__concurso=concurso).first()
+    if sub is None:
+        raise ValueError("Subtópico não encontrado.")
+    sub.delete()
+    return {}
