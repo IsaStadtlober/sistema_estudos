@@ -257,7 +257,7 @@ def _validar(texto, concurso, res):
         ent = cat.get(chave)
         if ent is None:
             ent = cat[chave] = {
-                "chave": chave, "nome": nome, "obj": None, "peso": peso or 1, "peso_novo": None,
+                "chave": chave, "nome": nome, "obj": None, "peso": peso, "peso_novo": None,
                 "topicos": {}, "novos": [],
             }
         elif peso and ent["obj"] is not None and peso != ent["peso"]:

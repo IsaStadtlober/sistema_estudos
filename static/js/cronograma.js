@@ -59,7 +59,7 @@
         while (limite-- > 0 && fila.length) {
             if (D.dias_ativos.indexOf(wd(dia)) !== -1) {
                 var total = 0, melhor = null;
-                fila.forEach(function (x) { x.cred += x.d.peso; total += x.d.peso; });
+                fila.forEach(function (x) { var p = x.d.peso || 2; x.cred += p; total += p; });
                 fila.forEach(function (x) { if (!melhor || x.cred > melhor.cred) melhor = x; });
                 melhor.cred -= total;
                 PLANO[iso(dia)] = { disc: melhor.d, topico: melhor.itens.shift() };

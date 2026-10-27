@@ -34,7 +34,7 @@
                 <div class="flex items-center gap-3 flex-wrap">
                     <span class="w-3.5 h-3.5 rounded-full" style="background-color: {{ d.cor }}"></span>
                     <h3 class="font-bold text-sm text-gray-900 dark:text-white">{{ d.nome }}</h3>
-                    <span class="bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300 text-[10px] font-bold px-2 py-0.5 rounded">Peso {{ d.peso }}</span>
+                    {% if d.peso %}<span class="bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300 text-[10px] font-bold px-2 py-0.5 rounded">Peso {{ d.peso }}</span>{% endif %}
                     <span class="text-[10px] text-gray-500 dark:text-gray-400">{{ d.feitos }}/{{ d.topicos|length }} com teoria</span>
                 </div>
                 <i class="chev fa-solid fa-chevron-down text-gray-400 transition-transform"></i>

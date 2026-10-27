@@ -24,7 +24,9 @@ class Disciplina(models.Model):
     nome = models.CharField(max_length=120)
     sigla = models.CharField(max_length=6)
     peso = models.PositiveSmallIntegerField(
-        default=1, validators=[MinValueValidator(1), MaxValueValidator(3)]
+        null=True, blank=True, default=None,
+        validators=[MinValueValidator(1), MaxValueValidator(3)],
+        help_text="1 a 3. Deixe em branco se ainda não souber.",
     )
     cor = models.CharField(max_length=7, default="#6366f1", help_text="Hexadecimal, ex.: #6366f1")
     ordem = models.PositiveSmallIntegerField(default=0)
@@ -37,6 +39,11 @@ class Disciplina(models.Model):
 
     def __str__(self):
         return f"{self.nome} ({self.concurso})"
+
+    @property
+    def peso_efetivo(self):
+        """Peso usado nos cálculos: sem peso definido, conta como médio (2)."""
+        return self.peso or 2
 
 
 class Topico(models.Model):

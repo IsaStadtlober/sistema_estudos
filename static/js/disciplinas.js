@@ -52,7 +52,9 @@
             '<span class="block text-[11px] text-gray-500 dark:text-gray-400">' + plural(d.n_topicos, 'tópico', 'tópicos') + ' · ' +
             plural(d.n_lancamentos, 'lançamento', 'lançamentos') + ' · ' + plural(d.n_itens, 'item no cronograma', 'itens no cronograma') + '</span></span></button>' +
             '<span class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] font-bold px-2 py-0.5 rounded">' + esc(d.sigla) + '</span>' +
-            '<span class="bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300 text-[10px] font-bold px-2 py-0.5 rounded">Peso ' + d.peso + '</span>' +
+            (d.peso
+                ? '<span class="bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300 text-[10px] font-bold px-2 py-0.5 rounded">Peso ' + d.peso + '</span>'
+                : '<span class="bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded">Sem peso</span>') +
             botao('editar-disc', d.id, 'fa-pen', 'Editar disciplina') +
             botao('excluir-disc', d.id, 'fa-trash', 'Excluir disciplina', ' hover:text-rose-600') +
             botao('abrir', d.id, aberta ? 'fa-chevron-up' : 'fa-chevron-down', aberta ? 'Recolher tópicos' : 'Ver tópicos') +
@@ -86,7 +88,7 @@
         $('discModalTitulo').textContent = d ? 'Editar disciplina' : 'Nova disciplina';
         $('discId').value = d ? d.id : '';
         $('discNome').value = d ? d.nome : '';
-        $('discPeso').value = d ? d.peso : 2;
+        $('discPeso').value = d && d.peso ? d.peso : '';
         $('discCor').value = d ? d.cor : corLivre();
         $('discSigla').value = d ? d.sigla : '';
         abrir();

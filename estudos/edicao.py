@@ -53,12 +53,16 @@ def salvar_disciplina(concurso, c):
     if len(nome) > 120:
         raise ValueError("Nome muito longo (máximo de 120 caracteres).")
 
-    try:
-        peso = int(c.get("peso") or 1)
-    except (TypeError, ValueError):
-        raise ValueError("Peso inválido.")
-    if not 1 <= peso <= 3:
-        raise ValueError("O peso deve ser 1, 2 ou 3.")
+    bruto_peso = c.get("peso")
+    if bruto_peso in (None, ""):
+        peso = None  # ainda sem peso definido
+    else:
+        try:
+            peso = int(bruto_peso)
+        except (TypeError, ValueError):
+            raise ValueError("Peso inválido.")
+        if not 1 <= peso <= 3:
+            raise ValueError("O peso deve ser 1, 2 ou 3, ou ficar em branco.")
 
     cor = str(c.get("cor") or "").strip()
     if cor and not re.fullmatch(r"#[0-9a-fA-F]{6}", cor):
