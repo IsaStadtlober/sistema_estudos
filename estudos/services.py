@@ -111,7 +111,7 @@ def dashboard_dados(concurso_id, sigla, periodo):
         q = (r["q"] or 0) if r else 0
         a = (r["a"] or 0) if r else 0
         linha = {
-            "id": d.id, "sigla": d.sigla, "nome": d.nome, "cor": d.cor, "peso": d.peso,
+            "id": d.id, "sigla": d.sigla, "nome": d.nome, "cor": d.cor, "peso": d.peso or "—",
             "questoes": q, "acertos": a, "erros": q - a, "pct": _pct(a, q), "cobertura": cobertura,
         }
         tabela.append(linha)
@@ -127,7 +127,7 @@ def dashboard_dados(concurso_id, sigla, periodo):
             erro = 1 - acerto if acerto is not None else 0.5
             falta = 1 - completos / n
             prioridades.append({
-                "score": d.peso * (falta + 0.2) * (erro + 0.2),
+                "score": (d.peso or 2) * (falta + 0.2) * (erro + 0.2),
                 "id": d.id, "sigla": d.sigla, "nome": d.nome, "cor": d.cor, "peso": d.peso,
                 "acerto": round(acerto * 100) if acerto is not None else None,
                 "cobertura": cobertura,

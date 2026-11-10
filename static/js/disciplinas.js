@@ -65,14 +65,14 @@
     }
 
     function formSub(t) {
-        return '<div class="p-2.5 bg-gray-50/60 dark:bg-gray-700/30 rounded-xl">' +
-            '<textarea rows="3" placeholder="Digite os subtópicos, um por linha" class="flex-1 min-w-0 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"></textarea>' +
-            '<div class="flex sm:flex-col gap-2">' +
+        return '<form data-form-sub="' + t.id + '" style="display:flex;gap:8px;align-items:flex-start;margin:12px 0 4px 24px">' +
+            '<textarea rows="3" placeholder="Digite os subtópicos, um por linha" style="flex:1;min-width:0" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"></textarea>' +
+            '<div style="display:flex;flex-direction:column;gap:8px">' +
             '<button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2.5 rounded-xl">Adicionar</button>' +
             '<button type="button" data-acao="fechar-sub" data-id="' + t.id + '" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold px-4 py-2.5 rounded-xl">Fechar</button>' +
             '</div></form>';
     }
-
+    
     function linhaTopico(t) {
         var n = t.subtopicos.length;
         return '<div class="p-3 bg-gray-50/60 dark:bg-gray-700/30 rounded-xl">' +
