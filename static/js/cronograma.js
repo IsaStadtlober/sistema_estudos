@@ -1,7 +1,6 @@
-/* Cronograma em calendário.
-   - Plano cadastrado (importado da IA ou criado aqui): é o que manda.
-   - Sem nenhum item cadastrado, mostra uma sugestão automática provisória.
-   - Clique no item = editar; arrastar o item para outro dia = mover. */
+/* Cronograma em calendário, 100% manual.
+   Clique no item = editar; arrastar o item para outro dia = mover.
+   Dias sem item ficam vazios: nada é sugerido automaticamente. */
 (function () {
     'use strict';
 
@@ -40,40 +39,19 @@
     var ref = parse(D.hoje);
     var sel = D.hoje;
     var POR = {};      // itens do plano por data
-    var TEM = false;   // existe plano cadastrado?
-    var PLANO = {};    // sugestão automática (só sem plano)
+    var TEM = false;   // existe algum item cadastrado?
     var arrastando = null;
-
-    // Divisão do dia para a sugestão automática
-    var M = D.minutos;
-    var M_TEORIA = Math.round(M * 0.40);
-    var M_QUEST = Math.round(M * 0.35);
-    var M_REV = M - M_TEORIA - M_QUEST;
-    var N_QUEST = Math.max(5, Math.floor(M_QUEST / 3));
-
-    function gerarPlano() {
-        PLANO = {};
-        var fila = D.disciplinas.map(function (d) { return { d: d, itens: d.pendentes.slice(), cred: 0 }; })
-            .filter(function (x) { return x.itens.length; });
-        var dia = parse(D.hoje), limite = 400;
-        while (limite-- > 0 && fila.length) {
-            if (D.dias_ativos.indexOf(wd(dia)) !== -1) {
-                var total = 0, melhor = null;
-                fila.forEach(function (x) { var p = x.d.peso || 2; x.cred += p; total += p; });
-                fila.forEach(function (x) { if (!melhor || x.cred > melhor.cred) melhor = x; });
-                melhor.cred -= total;
-                PLANO[iso(dia)] = { disc: melhor.d, topico: melhor.itens.shift() };
-                if (!melhor.itens.length) fila = fila.filter(function (x) { return x !== melhor; });
-            }
-            dia = somar(dia, 1);
-        }
-    }
 
     function indexar() {
         POR = {};
         D.itens.forEach(function (it) { (POR[it.data] = POR[it.data] || []).push(it); });
+        Object.keys(POR).forEach(function (k) {
+            POR[k].sort(function (a, b) {
+                var x = a.hora_inicio || '99:99', y = b.hora_inicio || '99:99';
+                return x < y ? -1 : x > y ? 1 : 0;
+            });
+        });
         TEM = D.itens.length > 0;
-        if (TEM) PLANO = {}; else gerarPlano();
     }
 
     function info(d) {
@@ -85,18 +63,21 @@
             passado: k < D.hoje,
             folga: D.dias_ativos.indexOf(wd(d)) === -1,
             reg: D.historico[k] || [],
-            itens: POR[k] || [],
-            plano: (!TEM && k >= D.hoje && !(D.prova && k > D.prova)) ? (PLANO[k] || null) : null
+            itens: POR[k] || []
         };
     }
 
     // ----- conteúdo das células -----
+    function hhmm(h) { return h ? h.replace(':', 'h') : ''; } // "21:45" -> "21h45"
+
     function linhaItem(it, cls) {
         var t = TIPO[it.tipo];
-        var nome = it.topico || it.disciplina || t.nome;
-        return '<div data-item="' + it.id + '" draggable="true" title="Clique para editar · arraste para outro dia" class="flex items-center gap-1 cursor-pointer ' + (it.concluido ? 'opacity-50 line-through' : '') + '">' +
-            '<span class="flex-none rounded px-1 text-[9px] font-bold ' + t.badge + '">' + t.letra + '</span>' +
-            '<span class="min-w-0 text-[10px] ' + cls + '"' + (it.cor ? ' style="color:' + esc(it.cor) + '"' : '') + '>' + esc(nome) + '</span></div>';
+        var nome = it.disciplina || t.nome;
+        var sub = t.nome + (it.topico ? ' · ' + it.topico : '');
+        return '<div data-item="' + it.id + '" draggable="true" title="Clique para editar · arraste para outro dia" class="cursor-pointer ' + (it.concluido ? 'opacity-50 line-through' : '') + '">' +
+            '<div class="text-[10px] font-semibold ' + cls + '"' + (it.cor ? ' style="color:' + esc(it.cor) + '"' : '') + '>' +
+            (it.hora_inicio ? hhmm(it.hora_inicio) + ' · ' : '') + esc(nome) + '</div>' +
+            '<div class="text-[9px] text-gray-400 ' + cls + '">' + esc(sub) + '</div></div>';
     }
 
     function bloco(nome, cor, sub, cls) {
@@ -107,13 +88,12 @@
     function conteudo(o, grande) {
         var cls = grande ? '' : 'truncate';
         if (o.itens.length) {
-            var max = grande ? 99 : 2, h = '<div class="mt-1 space-y-0.5">';
+            var max = grande ? 99 : 2, h = '<div class="mt-1 space-y-1.5">';
             o.itens.slice(0, max).forEach(function (it) { h += linhaItem(it, cls); });
             if (o.itens.length > max) h += '<div class="text-[9px] text-gray-400">+' + (o.itens.length - max) + ' mais</div>';
             return h + '</div>';
         }
         if (o.prova) return '<span class="text-[10px] text-amber-700 dark:text-amber-300">Dia da prova</span>';
-        if (o.plano) return bloco(o.plano.disc.nome, o.plano.disc.cor, o.plano.topico + ' (sugestão)', cls);
         if (o.reg.length) {
             var r = o.reg[0];
             return bloco(r.disciplina, r.cor, o.reg.length > 1 ? o.reg.length + ' sessões de questões' : r.acertos + '/' + r.total + ' questões', cls);
@@ -190,12 +170,12 @@
     function banner() {
         var b = $('cronoBanner');
         if (!TEM) {
-            b.innerHTML = '<i class="fa-solid fa-circle-info text-indigo-600 text-base"></i><span>Nenhum plano cadastrado: o calendário mostra uma <strong>sugestão automática</strong>. Use <strong>Importar plano</strong> para trazer o cronograma da IA ou <strong>Novo item</strong> para montar o seu.</span>';
+            b.innerHTML = '<i class="fa-solid fa-circle-info text-indigo-600 text-base"></i><span>Seu cronograma está vazio. Clique em um dia e use <strong>Adicionar neste dia</strong>, ou use o botão <strong>Novo item</strong>.</span>';
             return;
         }
         var datas = D.itens.map(function (i) { return i.data; }).sort();
         var feitos = D.itens.filter(function (i) { return i.concluido; }).length;
-        b.innerHTML = '<i class="fa-solid fa-circle-check text-indigo-600 text-base"></i><span>Plano cadastrado: <strong>' + D.itens.length + ' itens</strong> de ' +
+        b.innerHTML = '<i class="fa-solid fa-circle-check text-indigo-600 text-base"></i><span><strong>' + D.itens.length + ' itens</strong> de ' +
             br(parse(datas[0])) + ' a ' + br(parse(datas[datas.length - 1])) + ' · <strong>' + feitos + '</strong> concluído' + (feitos === 1 ? '' : 's') +
             '. Clique em um item para editar ou arraste-o para outro dia.</span>';
     }
@@ -221,7 +201,8 @@
 
     function cardItem(it) {
         var t = TIPO[it.tipo];
-        var titulo = t.nome + ' · ' + it.minutos + ' min' + (it.questoes ? ' · ' + it.questoes + ' questões' : '');
+        var hora = it.hora_inicio ? hhmm(it.hora_inicio) + (it.hora_fim ? '–' + hhmm(it.hora_fim) : '') + ' · ' : '';
+        var titulo = hora + t.nome + ' · ' + it.minutos + ' min' + (it.questoes ? ' · ' + it.questoes + ' questões' : '');
         var botoes = '<div class="flex items-center gap-1 flex-none">' +
             botao('concluir', it.id, 'fa-check', it.concluido ? 'Desfazer conclusão' : 'Marcar como concluído',
                 it.concluido ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-current hover:bg-white/60 dark:hover:bg-black/20') +
@@ -260,22 +241,17 @@
         } else if (o.folga) {
             status('Folga', cinza);
         } else {
-            status(o.passado ? 'Sem registro' : (o.plano ? 'Sugestão' : 'Sem plano'), cinza);
+            status(o.passado ? 'Sem registro' : 'Sem plano', cinza);
         }
 
         if (o.prova) cards += card('amber', 'Dia da prova', D.prova ? br(parse(D.prova)) : '', 'Boa prova!');
         cards += o.itens.map(cardItem).join('');
-        if (!o.itens.length && o.plano) {
-            cards += card('blue', 'Teoria (' + M_TEORIA + ' min) · sugestão', o.plano.disc.nome, o.plano.topico);
-            cards += card('green', 'Questões (' + M_QUEST + ' min)', N_QUEST + ' questões no QConcursos', 'Disciplina: ' + o.plano.disc.nome);
-            cards += card('purple', 'Revisão (' + M_REV + ' min)', 'Revisões dos ciclos de 1, 7, 15 e 30 dias', '');
-        }
         o.reg.forEach(function (r) {
             var pct = Math.round(r.acertos / r.total * 100);
             cards += card('gray', 'Lançado: ' + r.acertos + '/' + r.total + ' (' + pct + '%)', r.disciplina, r.topico);
         });
         if (!cards) {
-            cards = card('gray', o.folga ? 'Dia de folga' : 'Sem plano para este dia', o.folga ? 'Descanso.' : 'Use "Adicionar neste dia" para planejar.', '');
+            cards = card('gray', o.folga ? 'Dia de folga' : 'Nada planejado para este dia', o.folga ? 'Descanso.' : 'Use "Adicionar neste dia" para planejar.', '');
         }
         $('cronoDrawerContent').innerHTML = cards;
     }
@@ -317,6 +293,8 @@
         $('itemMin').value = it ? it.minutos : 45;
         $('itemQuest').value = it && it.questoes !== null ? it.questoes : '';
         $('itemObs').value = it ? it.obs : '';
+        $('itemHIni').value = it ? it.hora_inicio : '';
+        $('itemHFim').value = it ? it.hora_fim : '';
         $('btnExcluirItem').classList.toggle('hidden', !it);
         alternarCampos();
         abrir('modalItem');
@@ -346,7 +324,9 @@
             topico_id: $('itemTopico').value || null,
             minutos: $('itemMin').value,
             questoes: $('itemQuest').value,
-            obs: $('itemObs').value
+            obs: $('itemObs').value,
+            hora_inicio: $('itemHIni').value,
+            hora_fim: $('itemHFim').value
         };
         window.apiPost('/api/cronograma/item/', corpo).then(function (r) {
             fechar('modalItem');
@@ -433,91 +413,14 @@
         });
     });
 
-    // ----- importação -----
-    function celula(rotulo, valor, cor) {
-        return '<div class="rounded-xl border border-gray-200 dark:border-gray-700 p-2.5 text-center"><div class="text-lg font-bold ' +
-            (cor || 'text-gray-900 dark:text-white') + '">' + valor + '</div><div class="text-[10px] text-gray-500 dark:text-gray-400">' + rotulo + '</div></div>';
-    }
-
-    function previa(r) {
-        var vermelho = 'text-rose-600 dark:text-rose-400', verde = 'text-emerald-600 dark:text-emerald-400';
-        if (r.erro) {
-            return '<div class="rounded-xl p-3 bg-rose-100 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300"><i class="fa-solid fa-triangle-exclamation mr-1"></i>' + esc(r.erro) + '</div>';
-        }
-        var s = r.resumo, h = '';
-        if (r.aplicado) {
-            h += '<div class="rounded-xl p-3 bg-emerald-100 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300"><i class="fa-solid fa-circle-check mr-1"></i>Importação concluída.</div>';
-        } else if (!r.pode_aplicar) {
-            h += '<div class="rounded-xl p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300">Nada novo para importar com essas opções.</div>';
-        }
-        if (s.periodo) h += '<div class="text-gray-500 dark:text-gray-400">Período do plano: <strong>' + s.periodo + '</strong></div>';
-        h += '<div class="grid grid-cols-2 md:grid-cols-4 gap-2">' +
-            celula(r.aplicado ? 'itens criados' : 'itens a criar', s.itens_criados, verde) +
-            celula(r.aplicado ? 'itens removidos' : 'itens a remover', s.itens_removidos, s.itens_removidos ? vermelho : '') +
-            celula('disciplinas novas', s.disciplinas_criadas) +
-            celula('tópicos novos', s.topicos_criados) +
-            celula('já existiam', s.itens_duplicados) +
-            celula('pesos alterados', s.pesos_alterados) +
-            celula('não reconhecidos', s.ignorados, s.ignorados ? vermelho : '') + '</div>';
-        if (r.avisos.length) {
-            h += '<div class="rounded-xl p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300"><div class="font-bold mb-1">Avisos</div><ul class="list-disc pl-4 space-y-0.5">' +
-                r.avisos.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ul></div>';
-        }
-        if (r.ignorados.length) {
-            h += '<div class="rounded-xl p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300"><div class="font-bold mb-1">Não reconhecidos (serão ignorados)</div><ul class="list-disc pl-4 space-y-0.5">' +
-                r.ignorados.slice(0, 15).map(function (g) { return '<li><strong>' + esc(g.onde) + ':</strong> ' + esc(g.motivo) + '</li>'; }).join('') +
-                (r.ignorados.length > 15 ? '<li>e mais ' + (r.ignorados.length - 15) + '...</li>' : '') + '</ul></div>';
-        }
-        if (r.amostra.length) {
-            h += '<div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 uppercase font-semibold">' +
-                '<th class="p-2">Data</th><th class="p-2">Tipo</th><th class="p-2">Disciplina / tópico</th><th class="p-2 text-center">Min</th></tr></thead><tbody class="divide-y divide-gray-200 dark:divide-gray-700 text-gray-700 dark:text-gray-300">' +
-                r.amostra.map(function (a) {
-                    return '<tr><td class="p-2">' + a.data + '</td><td class="p-2">' + a.tipo + '</td><td class="p-2">' + esc(a.disciplina) + (a.topico ? ' · ' + esc(a.topico) : '') + '</td><td class="p-2 text-center">' + a.minutos + '</td></tr>';
-                }).join('') + '</tbody></table></div><div class="text-[11px] text-gray-400">Amostra dos primeiros itens válidos.</div>';
-        }
-        return h;
-    }
-
-    function invalidarPrevia() {
-        $('btnConfirmarImport').disabled = true;
-        $('impPrevia').innerHTML = '';
-    }
-
-    function enviarImport(aplicar) {
-        var botoes = [$('btnAnalisar'), $('btnConfirmarImport')];
-        botoes.forEach(function (b) { b.disabled = true; });
-        window.apiPost('/api/cronograma/importar/', {
-            texto: $('impTexto').value,
-            substituir: $('impSubstituir').checked,
-            aplicar: aplicar
-        }).then(function (r) {
-            $('impPrevia').innerHTML = previa(r);
-            $('btnAnalisar').disabled = false;
-            $('btnConfirmarImport').disabled = !(r.pode_aplicar && !r.aplicado);
-            if (r.aplicado) {
-                if (r.resumo.primeira) { sel = r.resumo.primeira; ref = parse(sel); }
-                return recarregar();
-            }
-        }).catch(function (err) {
-            $('impPrevia').innerHTML = previa({ erro: err.message });
-            $('btnAnalisar').disabled = false;
-        });
-    }
-
-    $('btnImportar').addEventListener('click', function () { invalidarPrevia(); $('btnAnalisar').disabled = false; abrir('modalImport'); });
-    $('btnAnalisar').addEventListener('click', function () { enviarImport(false); });
-    $('btnConfirmarImport').addEventListener('click', function () { enviarImport(true); });
-    $('impTexto').addEventListener('input', invalidarPrevia);
-    $('impSubstituir').addEventListener('change', invalidarPrevia);
-
     document.querySelectorAll('[data-fechar]').forEach(function (b) {
         b.addEventListener('click', function () { fechar(b.getAttribute('data-fechar')); });
     });
-    ['modalItem', 'modalImport', 'modalLimpar'].forEach(function (id) {
+    ['modalItem', 'modalLimpar'].forEach(function (id) {
         $(id).addEventListener('click', function (e) { if (e.target === this) fechar(id); });
     });
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') { fechar('modalItem'); fechar('modalImport'); fechar('modalLimpar'); }
+        if (e.key === 'Escape') { fechar('modalItem'); fechar('modalLimpar'); }
     });
 
     // ----- navegação, clique em item e arrastar -----
@@ -572,6 +475,17 @@
     $('cronoNext').addEventListener('click', function () { mover(1); });
     $('cronoBtnMonthView').addEventListener('click', function () { visao = 'mes'; render(); });
     $('cronoBtnWeekView').addEventListener('click', function () { visao = 'semana'; render(); });
+
+    // minutos calculados a partir do horário (continuam editáveis)
+    function calcularMinutos() {
+        var a = $('itemHIni').value, b = $('itemHFim').value;
+        if (!a || !b) return;
+        var m = (parseInt(b.slice(0, 2), 10) * 60 + parseInt(b.slice(3, 5), 10)) -
+                (parseInt(a.slice(0, 2), 10) * 60 + parseInt(a.slice(3, 5), 10));
+        if (m > 0) $('itemMin').value = m;
+    }
+    $('itemHIni').addEventListener('change', calcularMinutos);
+    $('itemHFim').addEventListener('change', calcularMinutos);
 
     indexar();
     render();

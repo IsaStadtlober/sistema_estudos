@@ -10,13 +10,10 @@
     <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
             <h2 class="text-xl font-bold text-gray-900 dark:text-white">Cronograma</h2>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Seu plano de estudos: importe o plano da IA ou monte e ajuste item por item</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Monte o seu plano de estudos, item por item</p>
         </div>
         <div class="flex flex-wrap items-center gap-3">
-            <button type="button" id="btnImportar" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition-all">
-                <i class="fa-solid fa-file-import"></i> Importar plano
-            </button>
-            <button type="button" id="btnNovoItem" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition-all">
+            <button type="button" id="btnNovoItem" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition-all">
                 <i class="fa-solid fa-plus"></i> Novo item
             </button>
             <button type="button" id="btnLimpar" class="bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-950/70 text-rose-700 dark:text-rose-300 font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition-all">
@@ -98,6 +95,16 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
             <div>
+                <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Hora de início</label>
+                <input type="time" id="itemHIni" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Hora de fim</label>
+                <input type="time" id="itemHFim" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
                 <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Minutos</label>
                 <input type="number" id="itemMin" min="0" max="600" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
             </div>
@@ -106,6 +113,7 @@
                 <input type="number" id="itemQuest" min="0" max="500" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
             </div>
         </div>
+        <p class="text-gray-400 -mt-2">Ao preencher início e fim, os minutos são calculados sozinhos. Você pode ajustar.</p>
         <div>
             <label class="block font-semibold text-gray-700 dark:text-gray-300 mb-1">Observação</label>
             <input type="text" id="itemObs" maxlength="300" placeholder="Opcional" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
@@ -119,30 +127,6 @@
             </div>
         </div>
     </form>
-</div>
-
-<!-- Modal: importar plano -->
-<div id="modalImport" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex hidden items-center justify-center p-4">
-    <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-3xl w-full p-5 border border-gray-200 dark:border-gray-700 shadow-xl max-h-[90vh] flex flex-col text-xs space-y-3">
-        <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-3">
-            <h3 class="font-bold text-gray-900 dark:text-white text-base">Importar plano (JSON da IA)</h3>
-            <button type="button" data-fechar="modalImport" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
-        </div>
-        <div class="overflow-y-auto custom-scrollbar flex-1 space-y-3 pr-1">
-            <p class="text-gray-500 dark:text-gray-400">Cole o JSON com as chaves <code>edital</code> e <code>cronograma</code>. Primeiro clique em <strong>Analisar</strong>: nada é gravado até você confirmar.</p>
-            <textarea id="impTexto" rows="9" spellcheck="false" placeholder="Cole o JSON aqui" class="w-full font-mono text-[11px] bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
-            <label class="flex items-start gap-2 text-gray-700 dark:text-gray-300 cursor-pointer">
-                <input type="checkbox" id="impSubstituir" checked class="mt-0.5 rounded text-indigo-600">
-                <span>Substituir os itens <strong>não concluídos</strong> do período coberto pelo plano. Itens concluídos nunca são removidos. Desmarque para apenas adicionar.</span>
-            </label>
-            <div id="impPrevia" class="space-y-3"></div>
-        </div>
-        <div class="flex justify-end gap-2 border-t border-gray-200 dark:border-gray-700 pt-3">
-            <button type="button" data-fechar="modalImport" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold py-2.5 px-4 rounded-xl">Fechar</button>
-            <button type="button" id="btnAnalisar" class="bg-gray-800 hover:bg-gray-900 dark:bg-gray-600 dark:hover:bg-gray-500 text-white font-bold py-2.5 px-4 rounded-xl">Analisar</button>
-            <button type="button" id="btnConfirmarImport" disabled class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed">Confirmar importação</button>
-        </div>
-    </div>
 </div>
 
 <!-- Modal: limpar período -->

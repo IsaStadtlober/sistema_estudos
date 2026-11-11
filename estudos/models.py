@@ -158,6 +158,8 @@ class ItemCronograma(models.Model):
         Topico, null=True, blank=True, on_delete=models.CASCADE, related_name="itens_cronograma"
     )
     minutos = models.PositiveSmallIntegerField(default=0)
+    hora_inicio = models.TimeField(null=True, blank=True)
+    hora_fim = models.TimeField(null=True, blank=True)
     questoes = models.PositiveSmallIntegerField(null=True, blank=True)
     obs = models.CharField(max_length=300, blank=True)
     concluido = models.BooleanField(default=False)

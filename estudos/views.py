@@ -32,6 +32,7 @@ def _item_dict(i):
         "topico": i.topico.nome if i.topico_id else "",
         "obs": i.obs,
         "concluido": i.concluido,
+        "hora": (f"{i.hora_inicio:%H:%M}" + (f"–{i.hora_fim:%H:%M}" if i.hora_fim else "")) if i.hora_inicio else "",
     }
 
 
@@ -120,17 +121,66 @@ def dashboard(request):
 # ---------- Hoje ----------
 
 def hoje(request):
+    from datetime import timedelta
+
+    from django.shortcuts import render
+    from django.utils import timezone
+
+    from .context import obter_concurso_ativo
+    from .models import Configuracao
+
+    nome_tipo = {"teoria": "Teoria", "questoes": "Questões", "revisao": "Revisão", "simulado": "Simulado"}
+    cor_tipo = {"teoria": "#3b82f6", "questoes": "#10b981", "revisao": "#8b5cf6", "simulado": "#f59e0b"}
+    dias = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
+
     ativo = obter_concurso_ativo()
     cfg = Configuracao.obter()
     hoje_d = timezone.localdate()
 
+    def dic(i):
+        ini, fim = getattr(i, "hora_inicio", None), getattr(i, "hora_fim", None)
+        hora = ""
+        if ini:
+            hora = ini.strftime("%H:%M") + ("–" + fim.strftime("%H:%M") if fim else "")
+        return {
+            "id": i.id,
+            "tipo": i.tipo,
+            "tipo_nome": nome_tipo[i.tipo],
+            "cor_tipo": cor_tipo[i.tipo],
+            "minutos": i.minutos,
+            "questoes": i.questoes,
+            "disciplina": i.disciplina.nome if i.disciplina_id else "",
+            "cor": i.disciplina.cor if i.disciplina_id else "#9ca3af",
+            "topico": i.topico.nome if i.topico_id else "",
+            "obs": i.obs,
+            "concluido": i.concluido,
+            "hora": hora,
+        }
+
     itens, proximos = [], []
     if ativo:
-        itens = [
-            _item_dict(i)
-            for i in ativo.itens_cronograma.filter(data=hoje_d).select_related("disciplina", "topico")
-        ]
-        proximos = _proximos_itens(ativo, hoje_d)
+        qs = ativo.itens_cronograma.filter(data=hoje_d).select_related("disciplina", "topico")
+        itens = sorted((dic(i) for i in qs), key=lambda x: x["hora"] or "99:99")
+
+        grupos = {}
+        futuros = ativo.itens_cronograma.filter(
+            data__gt=hoje_d, data__lte=hoje_d + timedelta(days=30)
+        ).select_related("disciplina", "topico")
+        for i in futuros:
+            if i.data not in grupos:
+                if len(grupos) == 3:
+                    break
+                grupos[i.data] = []
+            grupos[i.data].append(dic(i))
+        for dia, lista in grupos.items():
+            lista.sort(key=lambda x: x["hora"] or "99:99")
+            rotulo = "Amanhã" if (dia - hoje_d).days == 1 else dias[dia.weekday()]
+            proximos.append({
+                "rotulo": f"{rotulo} ({dia:%d/%m})",
+                "total_min": sum(x["minutos"] for x in lista),
+                "itens": lista[:3],
+                "extra": max(0, len(lista) - 3),
+            })
 
     ctx = {
         "hoje_data": hoje_d,
@@ -139,7 +189,22 @@ def hoje(request):
         "proximos_itens": proximos,
     }
     if itens:
-        ctx["resumo"] = _resumo_itens(itens)
+        feitos = [i for i in itens if i["concluido"]]
+        por_tipo = {}
+        for i in itens:
+            por_tipo[i["tipo"]] = por_tipo.get(i["tipo"], 0) + i["minutos"]
+        ctx["resumo"] = {
+            "minutos": sum(i["minutos"] for i in itens),
+            "questoes": sum(i["questoes"] or 0 for i in itens),
+            "concluidos": len(feitos),
+            "total": len(itens),
+            "minutos_feitos": sum(i["minutos"] for i in feitos),
+            "percentual": round(len(feitos) / len(itens) * 100),
+            "segmentos": [
+                {"tipo_nome": nome_tipo[t], "cor": cor_tipo[t], "minutos": por_tipo[t]}
+                for t in ("teoria", "questoes", "revisao", "simulado") if por_tipo.get(t)
+            ],
+        }
     return render(request, "hoje_plano.html", ctx)
 
 

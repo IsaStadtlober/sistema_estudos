@@ -3,7 +3,7 @@ Sem HTTP aqui: as funções recebem e devolvem dados simples (fáceis de testar 
 import json
 import re
 import unicodedata
-from datetime import date
+from datetime import date, time
 from difflib import get_close_matches
 
 from django.db import transaction
@@ -88,6 +88,8 @@ def serializar_item(i):
         "questoes": i.questoes,
         "obs": i.obs,
         "concluido": i.concluido,
+        "hora_inicio": i.hora_inicio.strftime("%H:%M") if i.hora_inicio else "",
+        "hora_fim": i.hora_fim.strftime("%H:%M") if i.hora_fim else "",
     }
 
 
@@ -172,6 +174,22 @@ def salvar_item(concurso, c):
     questoes = None if (tipo == "teoria" or q in (None, "")) else _inteiro(q, "Nº de questões", 0, 500)
     obs = str(c.get("obs") or "").strip()[:300]
 
+    def _hora(valor, nome):
+        v = str(valor or "").strip()
+        if not v:
+            return None
+        try:
+            return time.fromisoformat(v[:5])
+        except ValueError:
+            raise ValueError(f"{nome} inválida. Use o formato HH:MM.")
+
+    hora_inicio = _hora(c.get("hora_inicio"), "Hora de início")
+    hora_fim = _hora(c.get("hora_fim"), "Hora de fim")
+    if hora_fim and not hora_inicio:
+        raise ValueError("Informe também a hora de início.")
+    if hora_inicio and hora_fim and hora_fim <= hora_inicio:
+        raise ValueError("A hora de fim deve ser depois da hora de início.")
+
     if c.get("id"):
         pk = _inteiro(c["id"], "Item", 1, 10**9)
         item = ItemCronograma.objects.filter(pk=pk, concurso=concurso).first()
@@ -185,6 +203,7 @@ def salvar_item(concurso, c):
     item.data, item.tipo = data, tipo
     item.disciplina, item.topico = disciplina, topico
     item.minutos, item.questoes, item.obs = minutos, questoes, obs
+    item.hora_inicio, item.hora_fim = hora_inicio, hora_fim
     if mudou_data:
         mx = ItemCronograma.objects.filter(concurso=concurso, data=data).aggregate(m=Max("ordem"))["m"]
         item.ordem = 0 if mx is None else mx + 1
