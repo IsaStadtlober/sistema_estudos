@@ -30,4 +30,5 @@ urlpatterns = [
     path("api/ajustes/concurso/", api.concurso_salvar, name="api_concurso_salvar"),
     path("api/ajustes/concurso/<int:pk>/excluir/", api.concurso_excluir, name="api_concurso_excluir"),
     path("api/ajustes/rotina/", api.rotina_salvar, name="api_rotina_salvar"),
+    path("api/lancamentos/salvar/", api.lancamento_salvar, name="api_lancamento_salvar"),
 ]

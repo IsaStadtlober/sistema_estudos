@@ -10,7 +10,6 @@
     var selDisc = $('lancarDiscipline');
     var selTopico = $('lancarTopic');
 
-    // Tópicos dependem da disciplina escolhida
     function carregarTopicos() {
         var d = D.filter(function (x) { return String(x.id) === selDisc.value; })[0];
         selTopico.innerHTML = (d ? d.topicos : []).map(function (t) {
@@ -33,8 +32,23 @@
         if (!total || total < 1) return erro('Informe o número de questões.');
         if (isNaN(acertos) || acertos < 0) return erro('Informe o número de acertos.');
         if (acertos > total) return erro('O número de acertos não pode ser maior do que o total de questões.');
+        if (!selTopico.value) return erro('Escolha a disciplina e o tópico.');
 
         $('lancarErrorBox').classList.add('hidden');
-        window.emBreve(6); // gravação no banco chega no Lote 6
+        var btn = $('lancarForm').querySelector('button[type="submit"]');
+        btn.disabled = true;
+
+        window.apiPost('/api/lancamentos/salvar/', {
+            data: $('lancarDate').value,
+            topico_id: selTopico.value,
+            total: total,
+            acertos: acertos,
+            minutos: $('lancarTempo').value
+        }).then(function () {
+            window.location.reload();
+        }).catch(function (err) {
+            btn.disabled = false;
+            erro(err.message);
+        });
     });
 })();

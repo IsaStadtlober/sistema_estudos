@@ -248,3 +248,32 @@ def excluir_subtopico(concurso, pk):
         raise ValueError("Subtópico não encontrado.")
     sub.delete()
     return {}
+
+# ---------- lançamentos de questões ----------
+
+def salvar_lancamento(concurso, c):
+    from datetime import date as _date
+
+    from .models import Lancamento, ProgressoTopico, Topico
+
+    try:
+        data = _date.fromisoformat(str(c.get("data")))
+    except ValueError:
+        raise ValueError("Data inválida.")
+    pk = _inteiro(c.get("topico_id"), "Tópico", 1, 10**9)
+    topico = Topico.objects.filter(pk=pk, disciplina__concurso=concurso).first()
+    if topico is None:
+        raise ValueError("Tópico não encontrado.")
+    total = _inteiro(c.get("total"), "Nº de questões", 1, 500)
+    acertos = _inteiro(c.get("acertos"), "Nº de acertos", 0, 500)
+    if acertos > total:
+        raise ValueError("O número de acertos não pode ser maior do que o total de questões.")
+    bruto = c.get("minutos")
+    minutos = 0 if bruto in (None, "") else _inteiro(bruto, "Minutos", 0, 600)
+
+    Lancamento.objects.create(topico=topico, data=data, total=total, acertos=acertos, minutos=minutos)
+    p, _ = ProgressoTopico.objects.get_or_create(topico=topico)
+    if not p.questoes_feitas:
+        p.questoes_feitas = True
+        p.save()
+    return {}
