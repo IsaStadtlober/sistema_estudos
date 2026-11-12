@@ -277,3 +277,17 @@ def salvar_lancamento(concurso, c):
         p.questoes_feitas = True
         p.save()
     return {}
+
+def excluir_lancamento(concurso, pk):
+    from .models import Lancamento, ProgressoTopico
+
+    lanc = Lancamento.objects.filter(
+        pk=pk, topico__disciplina__concurso=concurso
+    ).select_related("topico").first()
+    if lanc is None:
+        raise ValueError("Lançamento não encontrado.")
+    topico = lanc.topico
+    lanc.delete()
+    if not Lancamento.objects.filter(topico=topico).exists():
+        ProgressoTopico.objects.filter(topico=topico, questoes_feitas=True).update(questoes_feitas=False)
+    return {}

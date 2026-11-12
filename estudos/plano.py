@@ -129,6 +129,7 @@ def dados_cronograma(concurso):
     lancs = Lancamento.objects.filter(topico__disciplina__concurso=concurso).select_related("topico__disciplina")
     for l in lancs:
         dados["historico"].setdefault(l.data.isoformat(), []).append({
+            "id": l.id,
             "sigla": l.topico.disciplina.sigla,
             "disciplina": l.topico.disciplina.nome,
             "cor": l.topico.disciplina.cor,

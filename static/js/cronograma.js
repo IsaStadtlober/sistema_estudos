@@ -246,10 +246,7 @@
 
         if (o.prova) cards += card('amber', 'Dia da prova', D.prova ? br(parse(D.prova)) : '', 'Boa prova!');
         cards += o.itens.map(cardItem).join('');
-        o.reg.forEach(function (r) {
-            var pct = Math.round(r.acertos / r.total * 100);
-            cards += card('gray', 'Lançado: ' + r.acertos + '/' + r.total + ' (' + pct + '%)', r.disciplina, r.topico);
-        });
+        o.reg.forEach(function (r) { cards += cardLanc(r); });
         if (!cards) {
             cards = card('gray', o.folga ? 'Dia de folga' : 'Nada planejado para este dia', o.folga ? 'Descanso.' : 'Use "Adicionar neste dia" para planejar.', '');
         }
@@ -486,6 +483,25 @@
     }
     $('itemHIni').addEventListener('change', calcularMinutos);
     $('itemHFim').addEventListener('change', calcularMinutos);
+
+// ----- lançamentos de questões: card com lixeira -----
+    function cardLanc(r) {
+        var pct = Math.round(r.acertos / r.total * 100);
+        return '<div class="p-3 rounded-xl border ' + CARD.gray + '">' +
+            '<div class="flex items-start justify-between gap-2"><div class="font-bold">Lançado: ' + r.acertos + '/' + r.total + ' (' + pct + '%)</div>' +
+            '<button type="button" data-acao="excluir-lanc" data-id="' + r.id + '" title="Apagar lançamento" class="w-7 h-7 rounded-lg border border-current text-[11px] hover:bg-white/60 dark:hover:bg-black/20 flex-none"><i class="fa-solid fa-trash"></i></button></div>' +
+            '<div class="font-semibold text-gray-800 dark:text-gray-200 mt-1">' + esc(r.disciplina) + '</div>' +
+            '<div class="text-gray-500 dark:text-gray-400 text-[11px]">' + esc(r.topico) + '</div></div>';
+    }
+
+    $('cronoDrawerContent').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-acao="excluir-lanc"]');
+        if (!b) return;
+        if (!window.confirm('Apagar este lançamento de questões? Os números do Dashboard vão mudar.')) return;
+        window.apiPost('/api/lancamentos/' + b.getAttribute('data-id') + '/excluir/', {})
+            .then(recarregar)
+            .catch(function (err) { window.alert(err.message); });
+    });
 
     indexar();
     render();

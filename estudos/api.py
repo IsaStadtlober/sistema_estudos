@@ -215,3 +215,7 @@ def subtopico_excluir(request, pk):
 @require_POST
 def lancamento_salvar(request):
     return _com_concurso(request, lambda a, c: {"ok": True, **edicao.salvar_lancamento(a, c)})
+
+@require_POST
+def lancamento_excluir(request, pk):
+    return _com_concurso(request, lambda a, c: {"ok": True, **edicao.excluir_lancamento(a, pk)})
